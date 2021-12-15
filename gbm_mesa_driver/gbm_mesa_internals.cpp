@@ -85,8 +85,15 @@ int gbm_mesa_driver_init(struct driver *drv)
 
 	drv_modify_combination(drv, DRM_FORMAT_NV12, &linear_metadata,
 			       BO_USE_HW_VIDEO_ENCODER | BO_USE_HW_VIDEO_DECODER |
-				   BO_USE_CAMERA_READ | BO_USE_CAMERA_WRITE);
+			       BO_USE_CAMERA_READ | BO_USE_CAMERA_WRITE);
+
 	drv_modify_combination(drv, DRM_FORMAT_NV21, &linear_metadata, BO_USE_HW_VIDEO_ENCODER);
+
+	drv_modify_combination(drv, DRM_FORMAT_YVU420_ANDROID, &linear_metadata,
+			       BO_USE_CAMERA_READ | BO_USE_CAMERA_WRITE);
+
+	drv_modify_combination(drv, DRM_FORMAT_R8, &linear_metadata,
+			       BO_USE_CAMERA_READ | BO_USE_CAMERA_WRITE);
 
 	return drv_modify_linear_combinations(drv);
 }
