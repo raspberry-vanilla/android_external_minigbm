@@ -100,6 +100,7 @@ struct backend {
 	int (*bo_unmap)(struct bo *bo, struct vma *vma);
 	int (*bo_invalidate)(struct bo *bo, struct mapping *mapping);
 	int (*bo_flush)(struct bo *bo, struct mapping *mapping);
+	uint32_t (*bo_get_map_stride)(struct bo *bo);
 	void (*resolve_format_and_use_flags)(struct driver *drv, uint32_t format,
 					     uint64_t use_flags, uint32_t *out_format,
 					     uint64_t *out_use_flags);
