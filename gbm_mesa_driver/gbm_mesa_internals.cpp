@@ -85,14 +85,22 @@ int gbm_mesa_driver_init(struct driver *drv)
 
 	drv_modify_combination(drv, DRM_FORMAT_NV12, &linear_metadata,
 			       BO_USE_HW_VIDEO_ENCODER | BO_USE_HW_VIDEO_DECODER |
-			       BO_USE_CAMERA_READ | BO_USE_CAMERA_WRITE);
-
+				   BO_USE_CAMERA_READ | BO_USE_CAMERA_WRITE);
 	drv_modify_combination(drv, DRM_FORMAT_NV21, &linear_metadata, BO_USE_HW_VIDEO_ENCODER);
 
-	drv_modify_combination(drv, DRM_FORMAT_YVU420_ANDROID, &linear_metadata,
-			       BO_USE_CAMERA_READ | BO_USE_CAMERA_WRITE);
-
+	/*
+	 * R8 format is used for Android's HAL_PIXEL_FORMAT_BLOB and is used for JPEG snapshots
+	 * from camera and input/output from hardware decoder/encoder.
+	 */
 	drv_modify_combination(drv, DRM_FORMAT_R8, &linear_metadata,
+			       BO_USE_CAMERA_READ | BO_USE_CAMERA_WRITE | BO_USE_HW_VIDEO_DECODER |
+				   BO_USE_HW_VIDEO_ENCODER);
+
+	/*
+	 * Android also frequently requests YV12 formats for some camera implementations
+	 * (including the external provider implmenetation).
+	 */
+	drv_modify_combination(drv, DRM_FORMAT_YVU420_ANDROID, &linear_metadata,
 			       BO_USE_CAMERA_READ | BO_USE_CAMERA_WRITE);
 
 	return drv_modify_linear_combinations(drv);
@@ -317,6 +325,18 @@ int gbm_mesa_bo_create(struct bo *bo, uint32_t width, uint32_t height, uint32_t 
 		scanout_strong = true;
 		width = ALIGN(width, 32);
 		size_align = 4096;
+	}
+
+	/* RPI4 hwcodecs */
+	if (use_flags & (BO_USE_HW_VIDEO_DECODER | BO_USE_HW_VIDEO_ENCODER)) {
+		scanout_strong = true;
+		width = ALIGN(width, 32);
+		size_align = 4096;
+	}
+
+	/* Allocate blobs in CMA */
+	if (format == DRM_FORMAT_R8) {
+		scanout_strong = true;
 	}
 
 	if (get_gbm_mesa_format(format) == 0) {
