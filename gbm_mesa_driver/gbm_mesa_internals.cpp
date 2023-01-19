@@ -406,7 +406,7 @@ int gbm_mesa_bo_create(struct bo *bo, uint32_t width, uint32_t height, uint32_t 
 		alloc_args.height = 1;
 		alloc_args.force_linear = true;
 
-		drv_logv("Unable to allocate 0x%08x format, allocate as 1D buffer", format);
+		//drv_logv("Unable to allocate 0x%08x format, allocate as 1D buffer", format);
 	}
 
 	if (alloc_args.drm_format == DRM_FORMAT_R8 && alloc_args.height == 1) {
@@ -416,8 +416,8 @@ int gbm_mesa_bo_create(struct bo *bo, uint32_t width, uint32_t height, uint32_t 
 		alloc_args.needs_map_stride = false;
 		alloc_args.height = DIV_ROUND_UP(alloc_args.width, 4096);
 		alloc_args.width = 4096;
-		drv_logv("Allocate 1D buffer as %dx%d R8 2D texture", alloc_args.width,
-			 alloc_args.height);
+		//drv_logv("Allocate 1D buffer as %dx%d R8 2D texture", alloc_args.width,
+		//	 alloc_args.height);
 	}
 
 	err = wr->alloc(&alloc_args);
@@ -436,8 +436,8 @@ int gbm_mesa_bo_create(struct bo *bo, uint32_t width, uint32_t height, uint32_t 
 	if (!bo_layout_ready)
 		drv_bo_from_format(bo, alloc_args.out_stride, 1, alloc_args.height, format);
 
-	drv_logv("Allocated: %dx%d, stride: %d, map_stride: %d", width, height,
-		 alloc_args.out_stride, alloc_args.out_map_stride);
+	//drv_logv("Allocated: %dx%d, stride: %d, map_stride: %d", width, height,
+	//	 alloc_args.out_stride, alloc_args.out_map_stride);
 
 	auto priv = new GbmMesaBoPriv();
 	for (size_t plane = 0; plane < bo->meta.num_planes; plane++) {
