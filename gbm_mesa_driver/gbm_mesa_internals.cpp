@@ -16,6 +16,8 @@
 
 #define LOG_TAG "GBM-MESA-GRALLOC"
 
+#define NDEBUG 1
+
 extern "C" {
 #include "drv_helpers.h"
 }
