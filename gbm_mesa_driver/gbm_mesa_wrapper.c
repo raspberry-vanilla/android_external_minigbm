@@ -108,9 +108,12 @@ static int gbm_mesa_alloc(struct alloc_args *args)
 	/* Buffer is now handled through the system via out_fd, we can now destroy gbm_mesa bo */
 	gbm_bo_destroy(bo);
 
+#if defined(__x86_64__) || defined(__i386__)
 	if (args->needs_map_stride) {
-		/* At least on Intel and nouveau map_stride after gbm_create is different from
-		 * map_stride after gbm_import, We care only about map_stride after importing. */
+		/* At least on Intel and nouveau the map_stride after calling gbm_create is
+		 * different from map_stride after calling gbm_import, We care only about map_stride
+		 * after importing. Issue does not affect arm systems. */
+
 		struct gbm_import_fd_modifier_data data = {
 			.width = args->width,
 			.height = args->height,
@@ -141,6 +144,7 @@ static int gbm_mesa_alloc(struct alloc_args *args)
 
 		gbm_bo_destroy(bo);
 	}
+#endif
 
 	return 0;
 }
