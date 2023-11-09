@@ -188,6 +188,16 @@ cc_library_shared {
     shared_libs: ["libminigbm_gralloc"],
 }
 
+cc_library_headers {
+    name: "libminigbm_gralloc_headers",
+    host_supported: true,
+    vendor_available: true,
+    export_include_dirs: ["cros_gralloc"],
+    visibility: [
+        "//device/generic/goldfish-opengl/system/hwc3:__subpackages__",
+    ],
+}
+
 // Intel
 cc_library_shared {
     name: "libminigbm_gralloc_intel",
