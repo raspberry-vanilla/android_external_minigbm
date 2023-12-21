@@ -49,3 +49,15 @@ cc_binary {
         "Main.cpp",
     ],
 }
+
+filegroup {
+    name: "allocator.minigbm.rc",
+    srcs: ["allocator.rc"]
+}
+
+prebuilt_etc {
+    name: "allocator.minigbm.xml",
+    src: "allocator.xml",
+    sub_dir: "vintf",
+    installable: false,
+}

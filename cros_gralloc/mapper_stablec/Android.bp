@@ -42,3 +42,10 @@ cc_library_shared {
     ],
     cpp_std: "c++20",
 }
+
+prebuilt_etc {
+    name: "mapper.minigbm.xml",
+    src: "mapper.minigbm.xml",
+    sub_dir: "vintf",
+    installable: false,
+}
