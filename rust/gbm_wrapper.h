@@ -1,0 +1,28 @@
+/*
+ * Copyright 2024 Google LLC
+ */
+
+#include <gbm.h>
+
+// bindgen doesn't create constants for macros that expand to other macros
+// https://github.com/Smithay/gbm.rs/blob/606c4260e0147256fb5c2901bbe837c0dc7d9f2d/gbm-sys/build.rs#L16
+
+const unsigned int __BINDGEN_TMP_GBM_BO_IMPORT_WL_BUFFER = GBM_BO_IMPORT_WL_BUFFER;
+#undef GBM_BO_IMPORT_WL_BUFFER
+const unsigned int GBM_BO_IMPORT_WL_BUFFER = __BINDGEN_TMP_GBM_BO_IMPORT_WL_BUFFER;
+#define GBM_BO_IMPORT_WL_BUFFER GBM_BO_IMPORT_WL_BUFFER
+
+const unsigned int __BINDGEN_TMP_GBM_BO_IMPORT_EGL_IMAGE = GBM_BO_IMPORT_EGL_IMAGE;
+#undef GBM_BO_IMPORT_EGL_IMAGE
+const unsigned int GBM_BO_IMPORT_EGL_IMAGE = __BINDGEN_TMP_GBM_BO_IMPORT_EGL_IMAGE;
+#define GBM_BO_IMPORT_EGL_IMAGE GBM_BO_IMPORT_EGL_IMAGE
+
+const unsigned int __BINDGEN_TMP_GBM_BO_IMPORT_FD = GBM_BO_IMPORT_FD;
+#undef GBM_BO_IMPORT_FD
+const unsigned int GBM_BO_IMPORT_FD = __BINDGEN_TMP_GBM_BO_IMPORT_FD;
+#define GBM_BO_IMPORT_FD GBM_BO_IMPORT_FD
+
+const unsigned int __BINDGEN_TMP_GBM_BO_IMPORT_FD_MODIFIER = GBM_BO_IMPORT_FD_MODIFIER;
+#undef GBM_BO_IMPORT_FD_MODIFIER
+const unsigned int GBM_BO_IMPORT_FD_MODIFIER = __BINDGEN_TMP_GBM_BO_IMPORT_FD_MODIFIER;
+#define GBM_BO_IMPORT_FD_MODIFIER GBM_BO_IMPORT_FD_MODIFIER

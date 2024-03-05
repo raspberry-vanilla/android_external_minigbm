@@ -163,7 +163,7 @@ cc_library {
         android: {
             shared_libs: [
                 "libcutils",
-                "liblog"
+                "liblog",
             ],
             static_libs: [
                 "libdrm",
@@ -172,11 +172,38 @@ cc_library {
     },
     apex_available: [
         "//apex_available:platform",
-        "com.android.virt",
+        "//apex_available:anyapex",
     ],
     vendor_available: true,
+    product_available: true,
 
     export_include_dirs: ["."],
+}
+
+// Rust bindings to minigbm, generated in a way compatible with gbm crate.
+rust_bindgen {
+    name: "libgbm_sys",
+    crate_name: "gbm_sys",
+    wrapper_src: "rust/gbm_wrapper.h",
+    source_stem: "bindings",
+    bindgen_flags: [
+        "--blocklist-type=__BINDGEN_TMP_.*",
+        "--allowlist-type=^gbm_.*$",
+        "--allowlist-function=^gbm_.*$",
+        "--allowlist-var=GBM_.*|gbm_.*$",
+        "--constified-enum-module=^gbm_.*$",
+    ],
+    shared_libs: ["libgbm"],
+    host_supported: true,
+    vendor_available: true,
+    product_available: true,
+    apex_available: [
+        "//apex_available:anyapex",
+        "//apex_available:platform",
+    ],
+    visibility: [
+        "//external/rust/crates/gbm",
+    ],
 }
 
 // Generic
