@@ -162,9 +162,11 @@ cc_library {
         },
         android: {
             shared_libs: [
-                "libdrm",
                 "libcutils",
                 "liblog"
+            ],
+            static_libs: [
+                "libdrm",
             ],
         },
     },
