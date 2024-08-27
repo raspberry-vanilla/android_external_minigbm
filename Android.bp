@@ -202,7 +202,7 @@ rust_bindgen {
         "//apex_available:platform",
     ],
     visibility: [
-        "//external/rust/crates/gbm",
+        "//external/rust/android-crates-io/crates/gbm",
     ],
 }
 
