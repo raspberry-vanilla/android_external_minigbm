@@ -142,6 +142,16 @@ cc_defaults {
     srcs: [":minigbm_gralloc0_files"],
 }
 
+generic_cflags = ["-DHAS_DMABUF_SYSTEM_HEAP"]
+intel_cflags = ["-DDRV_I915"]
+meson_cflags = ["-DDRV_MESON"]
+msm_cflags = [
+    "-DDRV_MSM",
+    "-DQCOM_DISABLE_COMPRESSED_NV12",
+    "-DHAS_DMABUF_SYSTEM_HEAP",
+]
+arcvm_cflags = ["-DVIRTIO_GPU_NEXT"]
+
 cc_library {
     name: "libgbm",
     defaults: ["minigbm_defaults"],
@@ -151,7 +161,17 @@ cc_library {
         ":minigbm_core_files",
         "gbm.c",
         "gbm_helpers.c",
+        "minigbm_helpers.c",
     ],
+
+    cflags: select(soong_config_variable("minigbm", "platform"), {
+        "generic": generic_cflags,
+        "intel": intel_cflags,
+        "meson": meson_cflags,
+        "msm": msm_cflags,
+        "arcvm": arcvm_cflags,
+        default: [],
+    }),
 
     target: {
         host: {
@@ -203,7 +223,7 @@ rust_bindgen {
         "//apex_available:platform",
     ],
     visibility: [
-        "//external/rust/crates/gbm",
+        "//external/rust/android-crates-io/crates/gbm",
     ],
 }
 
@@ -211,7 +231,7 @@ rust_bindgen {
 cc_library_shared {
     name: "libminigbm_gralloc",
     defaults: ["minigbm_cros_gralloc_library_defaults"],
-    cflags: ["-DHAS_DMABUF_SYSTEM_HEAP"],
+    cflags: generic_cflags,
 }
 
 cc_library_shared {
@@ -234,7 +254,7 @@ cc_library_headers {
 cc_library_shared {
     name: "libminigbm_gralloc_intel",
     defaults: ["minigbm_cros_gralloc_library_defaults"],
-    cflags: ["-DDRV_I915"],
+    cflags: intel_cflags,
     enabled: false,
     arch: {
         x86: {
@@ -265,7 +285,7 @@ cc_library_shared {
 cc_library_shared {
     name: "libminigbm_gralloc_meson",
     defaults: ["minigbm_cros_gralloc_library_defaults"],
-    cflags: ["-DDRV_MESON"],
+    cflags: meson_cflags,
 }
 
 cc_library_shared {
@@ -278,11 +298,7 @@ cc_library_shared {
 cc_library_shared {
     name: "libminigbm_gralloc_msm",
     defaults: ["minigbm_cros_gralloc_library_defaults"],
-    cflags: [
-        "-DDRV_MSM",
-        "-DQCOM_DISABLE_COMPRESSED_NV12",
-        "-DHAS_DMABUF_SYSTEM_HEAP",
-    ],
+    cflags: msm_cflags,
 }
 
 cc_library_shared {
@@ -295,7 +311,7 @@ cc_library_shared {
 cc_library_shared {
     name: "libminigbm_gralloc_arcvm",
     defaults: ["minigbm_cros_gralloc_library_defaults"],
-    cflags: ["-DVIRTIO_GPU_NEXT"],
+    cflags: arcvm_cflags,
 }
 
 cc_library_shared {
