@@ -81,6 +81,9 @@ class cros_gralloc_driver
 	std::mutex mutex_;
 	std::unordered_map<uint32_t, std::unique_ptr<cros_gralloc_buffer>> buffers_;
 	std::unordered_map<cros_gralloc_handle_t, cros_gralloc_imported_handle_info> handles_;
+
+	/* TODO(b/242184599): remove after SwiftShader is moved to the host. */
+	const bool is_running_with_software_rendering_ = false;
 };
 
 #endif

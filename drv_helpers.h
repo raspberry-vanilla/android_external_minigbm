@@ -7,6 +7,10 @@
 #ifndef DRV_HELPERS_H
 #define DRV_HELPERS_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdbool.h>
 
 #include "drv.h"
@@ -71,5 +75,9 @@ struct lru_entry *lru_find(struct lru *lru, bool (*eq)(struct lru_entry *e, void
 			   void *data);
 void lru_insert(struct lru *lru, struct lru_entry *entry);
 void lru_init(struct lru *lru, int max);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
