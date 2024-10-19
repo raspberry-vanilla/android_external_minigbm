@@ -152,7 +152,7 @@ static int cross_domain_metadata_query(struct driver *drv, struct bo_metadata *m
 	struct cross_domain_private *priv = drv->priv;
 	struct CrossDomainGetImageRequirements cmd_get_reqs;
 	uint32_t *addr = (uint32_t *)priv->ring_addr;
-	uint32_t plane, remaining_size;
+	uint32_t plane;
 
 	memset(&cmd_get_reqs, 0, sizeof(cmd_get_reqs));
 	pthread_mutex_lock(&priv->metadata_cache_lock);
@@ -170,9 +170,17 @@ static int cross_domain_metadata_query(struct driver *drv, struct bo_metadata *m
 
 	cmd_get_reqs.width = metadata->width;
 	cmd_get_reqs.height = metadata->height;
-	cmd_get_reqs.drm_format =
-	    (metadata->format == DRM_FORMAT_YVU420_ANDROID) ? DRM_FORMAT_YVU420 : metadata->format;
+	cmd_get_reqs.drm_format = metadata->format;
 	cmd_get_reqs.flags = metadata->use_flags;
+
+	// HACK(b/360937659): see also: b/172389166,  for history
+	// host minigbm has a hack that recognizes DRM_FORMAT_YVU420 + BO_USE_LINEAR and replaces
+	// the format internally back to DRM_FORMAT_YVU420_ANDROID to use the approrpriate layout
+	// rules.
+	if (cmd_get_reqs.drm_format == DRM_FORMAT_YVU420_ANDROID) {
+		cmd_get_reqs.drm_format = DRM_FORMAT_YVU420;
+		cmd_get_reqs.flags |= BO_USE_LINEAR;
+	}
 
 	/*
 	 * It is possible to avoid blocking other bo_create() calls by unlocking before
@@ -196,15 +204,12 @@ static int cross_domain_metadata_query(struct driver *drv, struct bo_metadata *m
 	metadata->memory_idx = addr[14];
 	metadata->physical_device_idx = addr[15];
 
-	remaining_size = metadata->total_size;
-	for (plane = 0; plane < metadata->num_planes; plane++) {
-		if (plane != 0) {
-			metadata->sizes[plane - 1] = metadata->offsets[plane];
-			remaining_size -= metadata->offsets[plane];
-		}
+	for (plane = 1; plane < metadata->num_planes; plane++) {
+		metadata->sizes[plane - 1] =
+		    metadata->offsets[plane] - metadata->offsets[plane - 1];
 	}
+	metadata->sizes[plane - 1] = metadata->total_size - metadata->offsets[plane - 1];
 
-	metadata->sizes[plane - 1] = remaining_size;
 	drv_array_append(priv->metadata_cache, metadata);
 
 out_unlock:

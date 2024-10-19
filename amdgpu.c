@@ -38,11 +38,12 @@
 #define CHROME_HEIGHT_ALIGN 16
 
 struct amdgpu_priv {
-	struct dri_driver dri;
 	int drm_version;
 
-	/* sdma */
 	struct drm_amdgpu_info_device dev_info;
+	struct dri_driver *dri;
+
+	/* sdma */
 	uint32_t sdma_ctx;
 	uint32_t sdma_cmdbuf_bo;
 	uint64_t sdma_cmdbuf_addr;
@@ -385,7 +386,9 @@ static int amdgpu_init(struct driver *drv)
 		drv->priv = NULL;
 		return -ENODEV;
 	}
-	if (dri_init(drv, DRI_PATH, "radeonsi")) {
+
+	priv->dri = dri_init(drv, DRI_PATH, "radeonsi");
+	if (!priv->dri) {
 		free(priv);
 		drv->priv = NULL;
 		return -ENODEV;
@@ -460,9 +463,9 @@ static int amdgpu_init(struct driver *drv)
 	for (unsigned f = 0; f < ARRAY_SIZE(render_target_formats); ++f) {
 		uint32_t format = render_target_formats[f];
 		int mod_cnt;
-		if (dri_query_modifiers(drv, format, 0, NULL, &mod_cnt) && mod_cnt) {
+		if (dri_query_modifiers(priv->dri, format, 0, NULL, &mod_cnt) && mod_cnt) {
 			uint64_t *modifiers = calloc(mod_cnt, sizeof(uint64_t));
-			dri_query_modifiers(drv, format, mod_cnt, modifiers, &mod_cnt);
+			dri_query_modifiers(priv->dri, format, mod_cnt, modifiers, &mod_cnt);
 			metadata.tiling = TILE_TYPE_DRI_MODIFIER;
 			for (int i = 0; i < mod_cnt; ++i) {
 				bool scanout =
@@ -473,7 +476,7 @@ static int amdgpu_init(struct driver *drv)
 					continue;
 
 				/* The virtgpu minigbm can't handle auxiliary planes in the host. */
-				if (dri_num_planes_from_modifier(drv, format, modifiers[i]) !=
+				if (dri_num_planes_from_modifier(priv->dri, format, modifiers[i]) !=
 				    drv_num_planes_from_format(format))
 					continue;
 
@@ -508,9 +511,12 @@ static int amdgpu_init(struct driver *drv)
 
 static void amdgpu_close(struct driver *drv)
 {
-	sdma_finish(drv->priv, drv_get_fd(drv));
-	dri_close(drv);
-	free(drv->priv);
+	struct amdgpu_priv *priv = drv->priv;
+
+	sdma_finish(priv, drv_get_fd(drv));
+	dri_close(priv->dri);
+	free(priv);
+
 	drv->priv = NULL;
 }
 
@@ -633,9 +639,9 @@ static int amdgpu_create_bo(struct bo *bo, uint32_t width, uint32_t height, uint
 			width = ALIGN(width, 256 / bytes_per_pixel);
 		}
 
-		return dri_bo_create(bo, width, height, format, use_flags);
+		return dri_bo_create(priv->dri, bo, width, height, format, use_flags);
 	} else if (combo->metadata.tiling == TILE_TYPE_DRI_MODIFIER) {
-		return dri_bo_create_with_modifiers(bo, width, height, format,
+		return dri_bo_create_with_modifiers(priv->dri, bo, width, height, format, use_flags,
 						    &combo->metadata.modifier, 1);
 	}
 
@@ -646,6 +652,7 @@ static int amdgpu_create_bo_with_modifiers(struct bo *bo, uint32_t width, uint32
 					   uint32_t format, const uint64_t *modifiers,
 					   uint32_t count)
 {
+	struct amdgpu_priv *priv = bo->drv->priv;
 	bool only_use_linear = true;
 
 	for (uint32_t i = 0; i < count; ++i)
@@ -655,11 +662,13 @@ static int amdgpu_create_bo_with_modifiers(struct bo *bo, uint32_t width, uint32
 	if (only_use_linear)
 		return amdgpu_create_bo_linear(bo, width, height, format, BO_USE_SCANOUT);
 
-	return dri_bo_create_with_modifiers(bo, width, height, format, modifiers, count);
+	return dri_bo_create_with_modifiers(priv->dri, bo, width, height, format, 0, modifiers,
+					    count);
 }
 
 static int amdgpu_import_bo(struct bo *bo, struct drv_import_fd_data *data)
 {
+	struct amdgpu_priv *priv = bo->drv->priv;
 	bool dri_tiling = data->format_modifier != DRM_FORMAT_MOD_LINEAR;
 	if (data->format_modifier == DRM_FORMAT_MOD_INVALID) {
 		struct combination *combo;
@@ -671,26 +680,30 @@ static int amdgpu_import_bo(struct bo *bo, struct drv_import_fd_data *data)
 	}
 
 	bo->meta.num_planes =
-	    dri_num_planes_from_modifier(bo->drv, data->format, data->format_modifier);
+	    dri_num_planes_from_modifier(priv->dri, data->format, data->format_modifier);
 
 	if (dri_tiling)
-		return dri_bo_import(bo, data);
+		return dri_bo_import(priv->dri, bo, data);
 	else
 		return drv_prime_bo_import(bo, data);
 }
 
 static int amdgpu_release_bo(struct bo *bo)
 {
+	struct amdgpu_priv *priv = bo->drv->priv;
+
 	if (bo->priv)
-		return dri_bo_release(bo);
+		return dri_bo_release(priv->dri, bo);
 
 	return 0;
 }
 
 static int amdgpu_destroy_bo(struct bo *bo)
 {
+	struct amdgpu_priv *priv = bo->drv->priv;
+
 	if (bo->priv)
-		return dri_bo_destroy(bo);
+		return dri_bo_destroy(priv->dri, bo);
 	else
 		return drv_gem_bo_destroy(bo);
 }
@@ -704,12 +717,11 @@ static void *amdgpu_map_bo(struct bo *bo, struct vma *vma, uint32_t map_flags)
 	struct drm_amdgpu_gem_op gem_op = { 0 };
 	uint32_t handle = bo->handle.u32;
 	struct amdgpu_linear_vma_priv *priv = NULL;
-	struct amdgpu_priv *drv_priv;
+	struct amdgpu_priv *drv_priv = bo->drv->priv;
 
 	if (bo->priv)
-		return dri_bo_map(bo, vma, 0, map_flags);
+		return dri_bo_map(drv_priv->dri, bo, vma, 0, map_flags);
 
-	drv_priv = bo->drv->priv;
 	gem_op.handle = handle;
 	gem_op.op = AMDGPU_GEM_OP_GET_GEM_CREATE_INFO;
 	gem_op.value = (uintptr_t)&bo_info;
@@ -779,8 +791,10 @@ fail:
 
 static int amdgpu_unmap_bo(struct bo *bo, struct vma *vma)
 {
+	struct amdgpu_priv *priv = bo->drv->priv;
+
 	if (bo->priv) {
-		return dri_bo_unmap(bo, vma);
+		return dri_bo_unmap(priv->dri, bo, vma);
 	} else {
 		int r = munmap(vma->addr, vma->length);
 		if (r)
@@ -830,6 +844,13 @@ static int amdgpu_bo_invalidate(struct bo *bo, struct mapping *mapping)
 	return 0;
 }
 
+static size_t amdgpu_num_planes_from_modifier(struct driver *drv, uint32_t format,
+					      uint64_t modifier)
+{
+	struct amdgpu_priv *priv = drv->priv;
+	return dri_num_planes_from_modifier(priv->dri, format, modifier);
+}
+
 const struct backend backend_amdgpu = {
 	.name = "amdgpu",
 	.preload = amdgpu_preload,
@@ -844,7 +865,7 @@ const struct backend backend_amdgpu = {
 	.bo_unmap = amdgpu_unmap_bo,
 	.bo_invalidate = amdgpu_bo_invalidate,
 	.resolve_format_and_use_flags = drv_resolve_format_and_use_flags_helper,
-	.num_planes_from_modifier = dri_num_planes_from_modifier,
+	.num_planes_from_modifier = amdgpu_num_planes_from_modifier,
 };
 
 #endif

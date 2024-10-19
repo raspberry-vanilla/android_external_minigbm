@@ -22,6 +22,24 @@
 #include "drv_priv.h"
 #include "util.h"
 
+// Avoid transitively including a bunch of unnecessary headers.
+#define GL_GLEXT_LEGACY
+#include "GL/internal/dri_interface.h"
+#undef GL_GLEXT_LEGACY
+
+struct dri_driver {
+	int fd;
+	void *driver_handle;
+	__DRIscreen *device;
+	__DRIcontext *context; /* Needed for map/unmap operations. */
+	const __DRIextension **extensions;
+	const __DRIcoreExtension *core_extension;
+	const __DRIdri2Extension *dri2_extension;
+	const __DRIimageExtension *image_extension;
+	const __DRI2flushExtension *flush_extension;
+	const __DRIconfig **configs;
+};
+
 static const struct {
 	uint32_t drm_format;
 	int dri_image_format;
@@ -163,24 +181,24 @@ void dri_dlclose(void *dri_so_handle)
 	dlclose(dri_so_handle);
 }
 
-/*
- * The caller is responsible for setting drv->priv to a structure that derives from dri_driver.
- */
-int dri_init(struct driver *drv, const char *dri_so_path, const char *driver_suffix)
+struct dri_driver *dri_init(struct driver *drv, const char *dri_so_path, const char *driver_suffix)
 {
 	char fname[128];
 	const __DRIextension **(*get_extensions)();
 	const __DRIextension *loader_extensions[] = { &use_invalidate.base, NULL };
 
-	struct dri_driver *dri = drv->priv;
+	struct dri_driver *dri = calloc(1, sizeof(*dri));
+	if (!dri)
+		return NULL;
+
 	char *node_name = drmGetRenderDeviceNameFromFd(drv_get_fd(drv));
 	if (!node_name)
-		return -ENODEV;
+		goto free_dri;
 
 	dri->fd = open(node_name, O_RDWR);
 	free(node_name);
 	if (dri->fd < 0)
-		return -ENODEV;
+		goto free_dri;
 
 	dri->driver_handle = dri_dlopen(dri_so_path);
 	if (!dri->driver_handle)
@@ -223,7 +241,7 @@ int dri_init(struct driver *drv, const char *dri_so_path, const char *driver_suf
 			      (const __DRIextension **)&dri->flush_extension))
 		goto free_context;
 
-	return 0;
+	return dri;
 
 free_context:
 	dri->core_extension->destroyContext(dri->context);
@@ -234,29 +252,26 @@ free_handle:
 	dri->driver_handle = NULL;
 close_dri_fd:
 	close(dri->fd);
-	return -ENODEV;
+free_dri:
+	free(dri);
+	return NULL;
 }
 
-/*
- * The caller is responsible for freeing drv->priv.
- */
-void dri_close(struct driver *drv)
+void dri_close(struct dri_driver *dri)
 {
-	struct dri_driver *dri = drv->priv;
-
 	dri->core_extension->destroyContext(dri->context);
 	dri->core_extension->destroyScreen(dri->device);
 	dri_dlclose(dri->driver_handle);
 	dri->driver_handle = NULL;
 	close(dri->fd);
+	free(dri);
 }
 
-int dri_bo_create(struct bo *bo, uint32_t width, uint32_t height, uint32_t format,
-		  uint64_t use_flags)
+int dri_bo_create(struct dri_driver *dri, struct bo *bo, uint32_t width, uint32_t height,
+		  uint32_t format, uint64_t use_flags)
 {
 	unsigned int dri_use;
 	int ret, dri_format;
-	struct dri_driver *dri = bo->drv->priv;
 
 	dri_format = drm_format_to_dri_format(format);
 
@@ -287,11 +302,11 @@ free_image:
 	return ret;
 }
 
-int dri_bo_create_with_modifiers(struct bo *bo, uint32_t width, uint32_t height, uint32_t format,
+int dri_bo_create_with_modifiers(struct dri_driver *dri, struct bo *bo, uint32_t width,
+				 uint32_t height, uint32_t format, uint64_t use_flags,
 				 const uint64_t *modifiers, uint32_t modifier_count)
 {
 	int ret, dri_format;
-	struct dri_driver *dri = bo->drv->priv;
 
 	if (!dri->image_extension->createImageWithModifiers)
 		return -ENOENT;
@@ -316,10 +331,9 @@ free_image:
 	return ret;
 }
 
-int dri_bo_import(struct bo *bo, struct drv_import_fd_data *data)
+int dri_bo_import(struct dri_driver *dri, struct bo *bo, struct drv_import_fd_data *data)
 {
 	int ret;
-	struct dri_driver *dri = bo->drv->priv;
 
 	if (data->format_modifier != DRM_FORMAT_MOD_INVALID) {
 		unsigned error;
@@ -366,17 +380,15 @@ int dri_bo_import(struct bo *bo, struct drv_import_fd_data *data)
 	return 0;
 }
 
-int dri_bo_release(struct bo *bo)
+int dri_bo_release(struct dri_driver *dri, struct bo *bo)
 {
-	struct dri_driver *dri = bo->drv->priv;
-
 	assert(bo->priv);
 	dri->image_extension->destroyImage(bo->priv);
 	/* Not clearing bo->priv as we still use it to determine which destroy to call. */
 	return 0;
 }
 
-int dri_bo_destroy(struct bo *bo)
+int dri_bo_destroy(struct dri_driver *dri, struct bo *bo)
 {
 	assert(bo->priv);
 	drv_gem_close(bo->drv, bo->handle.u32);
@@ -393,10 +405,9 @@ int dri_bo_destroy(struct bo *bo)
  * This function itself is not thread-safe; we rely on the fact that the caller
  * locks a per-driver mutex.
  */
-void *dri_bo_map(struct bo *bo, struct vma *vma, size_t plane, uint32_t map_flags)
+void *dri_bo_map(struct dri_driver *dri, struct bo *bo, struct vma *vma, size_t plane,
+		 uint32_t map_flags)
 {
-	struct dri_driver *dri = bo->drv->priv;
-
 	/* GBM flags and DRI flags are the same. */
 	vma->addr = dri->image_extension->mapImage(dri->context, bo->priv, 0, 0, bo->meta.width,
 						   bo->meta.height, map_flags,
@@ -407,10 +418,8 @@ void *dri_bo_map(struct bo *bo, struct vma *vma, size_t plane, uint32_t map_flag
 	return vma->addr;
 }
 
-int dri_bo_unmap(struct bo *bo, struct vma *vma)
+int dri_bo_unmap(struct dri_driver *dri, struct bo *bo, struct vma *vma)
 {
-	struct dri_driver *dri = bo->drv->priv;
-
 	assert(vma->priv);
 	dri->image_extension->unmapImage(dri->context, bo->priv, vma->priv);
 
@@ -426,9 +435,8 @@ int dri_bo_unmap(struct bo *bo, struct vma *vma)
 	return 0;
 }
 
-size_t dri_num_planes_from_modifier(struct driver *drv, uint32_t format, uint64_t modifier)
+size_t dri_num_planes_from_modifier(struct dri_driver *dri, uint32_t format, uint64_t modifier)
 {
-	struct dri_driver *dri = drv->priv;
 	uint64_t planes = 0;
 
 	/* We do not do any modifier checks here. The create will fail later if the modifier is not
@@ -443,10 +451,9 @@ size_t dri_num_planes_from_modifier(struct driver *drv, uint32_t format, uint64_
 	return drv_num_planes_from_format(format);
 }
 
-bool dri_query_modifiers(struct driver *drv, uint32_t format, int max, uint64_t *modifiers,
+bool dri_query_modifiers(struct dri_driver *dri, uint32_t format, int max, uint64_t *modifiers,
 			 int *count)
 {
-	struct dri_driver *dri = drv->priv;
 	if (!dri->image_extension->queryDmaBufModifiers)
 		return false;
 

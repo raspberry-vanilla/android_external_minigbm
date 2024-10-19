@@ -21,10 +21,13 @@
 // Reserve the GRALLOC_USAGE_PRIVATE_0 bit from hardware/gralloc.h for buffers
 // used for front rendering. minigbm backend later decides to use
 // BO_USE_FRONT_RENDERING or BO_USE_LINEAR upon buffer allocaton.
-#define BUFFER_USAGE_FRONT_RENDERING (1U << 28)
+#define BUFFER_USAGE_FRONT_RENDERING_PRIVATE (1U << 28)
 
 // Adopt BufferUsage::FRONT_BUFFER from api level 33
-#define BUFFER_USAGE_FRONT_RENDERING_MASK (BUFFER_USAGE_FRONT_RENDERING | (1ULL << 32))
+#define BUFFER_USAGE_FRONT_RENDERING (1ULL << 32)
+
+#define BUFFER_USAGE_FRONT_RENDERING_MASK                                                          \
+	(BUFFER_USAGE_FRONT_RENDERING | BUFFER_USAGE_FRONT_RENDERING_PRIVATE)
 
 #define CROS_GRALLOC_BUFFER_METADATA_MAX_NAME_SIZE 1024
 

@@ -261,7 +261,7 @@ static void virgl_get_emulated_transfers_params(const struct bo *bo,
 {
 	uint32_t y_plane_height;
 	uint32_t c_plane_height;
-	struct bo_metadata emulated_metadata;
+	struct bo_metadata emulated_metadata = { 0 };
 
 	if (transfer_box->x == 0 && transfer_box->y == 0 && transfer_box->width == bo->meta.width &&
 	    transfer_box->height == bo->meta.height) {
@@ -493,7 +493,7 @@ static int virgl_3d_bo_create(struct bo *bo, uint32_t width, uint32_t height, ui
 	size_t i;
 	uint32_t stride;
 	struct drm_virtgpu_resource_create res_create = { 0 };
-	struct bo_metadata emulated_metadata;
+	struct bo_metadata emulated_metadata = { 0 };
 
 	if (virgl_supports_combination_natively(bo->drv, format, use_flags)) {
 		stride = drv_stride_from_format(format, width, 0);
