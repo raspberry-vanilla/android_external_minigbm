@@ -55,6 +55,21 @@ cc_library {
     ],
 }
 
+cc_library {
+    name: "libminigbm_gralloc4_utils_gbm_mesa",
+    defaults: ["minigbm_cros_gralloc_defaults"],
+    vendor: true,
+    srcs: [
+        "CrosGralloc4Utils.cc",
+    ],
+    shared_libs: [
+        "android.hardware.graphics.mapper@4.0",
+        "libgralloctypes",
+        "libhidlbase",
+        "libminigbm_gralloc_gbm_mesa",
+    ],
+}
+
 cc_defaults {
     name: "minigbm_gralloc4_common_defaults",
     defaults: ["minigbm_cros_gralloc_defaults"],
@@ -118,6 +133,14 @@ cc_binary {
     },
 }
 
+cc_binary {
+    name: "android.hardware.graphics.allocator@4.0-service.minigbm_gbm_mesa",
+    defaults: ["minigbm_gralloc4_allocator_defaults"],
+    shared_libs: ["libminigbm_gralloc_gbm_mesa"],
+    vintf_fragment_modules: ["android.hardware.graphics.allocator@4.0.xml"],
+    init_rc: ["android.hardware.graphics.allocator@4.0-service.minigbm_gbm_mesa.rc"],
+}
+
 vintf_fragment {
     name: "android.hardware.graphics.mapper@4.0.xml",
     src: "android.hardware.graphics.mapper@4.0.xml",
@@ -155,4 +178,12 @@ cc_library_shared {
             enabled: true,
         },
     },
+}
+
+cc_library_shared {
+    name: "android.hardware.graphics.mapper@4.0-impl.minigbm_gbm_mesa",
+    defaults: ["minigbm_gralloc4_common_defaults"],
+    shared_libs: ["libminigbm_gralloc_gbm_mesa"],
+    vintf_fragment_modules: ["android.hardware.graphics.mapper@4.0.xml"],
+    srcs: [":minigbm_gralloc4_mapper_files"],
 }
