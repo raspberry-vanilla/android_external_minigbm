@@ -1,0 +1,5 @@
+{
+    "name": "com.android.hardware.graphics.allocator.minigbm_gbm_mesa",
+    "version": 1,
+    "vendorBootstrap": true
+}
