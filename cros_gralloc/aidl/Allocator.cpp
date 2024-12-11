@@ -198,7 +198,11 @@ ndk::ScopedAStatus Allocator::isSupported(const BufferDescriptorInfo& descriptor
 }
 
 ndk::ScopedAStatus Allocator::getIMapperLibrarySuffix(std::string* outResult) {
+#if defined(GBM_MESA)
+    *outResult = "minigbm_gbm_mesa";
+#else
     *outResult = "minigbm";
+#endif
     return ndk::ScopedAStatus::ok();
 }
 

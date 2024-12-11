@@ -57,6 +57,9 @@ cc_binary {
     init_rc: ["allocator.minigbm_gbm_mesa.rc"],
     vintf_fragments: ["allocator.xml"],
     vendor: true,
+    cflags: [
+        "-DGBM_MESA",
+    ],
     shared_libs: [
         "android.hardware.graphics.allocator-V2-ndk",
         "android.hardware.graphics.mapper@4.0",
