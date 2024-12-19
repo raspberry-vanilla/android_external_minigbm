@@ -283,20 +283,16 @@ static int i915_add_combinations(struct driver *drv)
 	drv_add_combinations(drv, scanout_render_formats, ARRAY_SIZE(scanout_render_formats),
 			     &metadata_x_tiled, scanout_and_render_not_linear);
 
+	const uint64_t nv12_usage =
+	    BO_USE_TEXTURE | BO_USE_HW_VIDEO_DECODER | BO_USE_SCANOUT | hw_protected;
+	const uint64_t p010_usage = BO_USE_TEXTURE | BO_USE_HW_VIDEO_DECODER | hw_protected |
+				    (i915->graphics_version >= 11 ? BO_USE_SCANOUT : 0);
+
 	if (i915->is_mtl) {
 		struct format_metadata metadata_4_tiled = { .tiling = I915_TILING_4,
 							    .priority = 3,
 							    .modifier = I915_FORMAT_MOD_4_TILED };
-/* Support tile4 NV12 and P010 for libva */
-#ifdef I915_SCANOUT_4_TILED
-		const uint64_t nv12_usage =
-		    BO_USE_TEXTURE | BO_USE_HW_VIDEO_DECODER | BO_USE_SCANOUT | hw_protected;
-		const uint64_t p010_usage =
-		    BO_USE_TEXTURE | BO_USE_HW_VIDEO_DECODER | hw_protected | BO_USE_SCANOUT;
-#else
-		const uint64_t nv12_usage = BO_USE_TEXTURE | BO_USE_HW_VIDEO_DECODER;
-		const uint64_t p010_usage = nv12_usage;
-#endif
+
 		drv_add_combination(drv, DRM_FORMAT_NV12, &metadata_4_tiled, nv12_usage);
 		drv_add_combination(drv, DRM_FORMAT_P010, &metadata_4_tiled, p010_usage);
 		drv_add_combinations(drv, render_formats, ARRAY_SIZE(render_formats),
@@ -309,17 +305,6 @@ static int i915_add_combinations(struct driver *drv)
 							    .priority = 3,
 							    .modifier = I915_FORMAT_MOD_Y_TILED };
 
-/* Support y-tiled NV12 and P010 for libva */
-#ifdef I915_SCANOUT_Y_TILED
-		const uint64_t nv12_usage =
-		    BO_USE_TEXTURE | BO_USE_HW_VIDEO_DECODER | BO_USE_SCANOUT | hw_protected;
-		const uint64_t p010_usage = BO_USE_TEXTURE | BO_USE_HW_VIDEO_DECODER |
-					    hw_protected |
-					    (i915->graphics_version >= 11 ? BO_USE_SCANOUT : 0);
-#else
-		const uint64_t nv12_usage = BO_USE_TEXTURE | BO_USE_HW_VIDEO_DECODER;
-		const uint64_t p010_usage = nv12_usage;
-#endif
 		drv_add_combinations(drv, render_formats, ARRAY_SIZE(render_formats),
 				     &metadata_y_tiled, render_not_linear);
 		/* Y-tiled scanout isn't available on old platforms so we add
