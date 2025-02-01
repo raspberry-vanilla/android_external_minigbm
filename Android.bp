@@ -224,6 +224,7 @@ rust_bindgen {
     ],
     visibility: [
         "//external/rust/android-crates-io/crates/gbm",
+        "//system/cros-codecs",
     ],
 }
 
