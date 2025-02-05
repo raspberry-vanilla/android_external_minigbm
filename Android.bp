@@ -156,6 +156,7 @@ cc_library {
     name: "libgbm",
     defaults: ["minigbm_defaults"],
     host_supported: true,
+    min_sdk_version: "34",
 
     srcs: [
         ":minigbm_core_files",
