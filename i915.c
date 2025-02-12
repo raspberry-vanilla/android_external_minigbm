@@ -900,6 +900,21 @@ static int i915_bo_import(struct bo *bo, struct drv_import_fd_data *data)
 	return 0;
 }
 
+static bool use_write_combining(struct bo *bo)
+{
+	/* TODO(b/118799155): We don't seem to have a good way to
+	 * detect the use cases for which WC mapping is really needed.
+	 * The current heuristic seems overly coarse and may be slowing
+	 * down some other use cases unnecessarily.
+	 *
+	 * For now, care must be taken not to use WC mappings for
+	 * Renderscript and camera use cases, as they're
+	 * performance-sensitive. */
+	return (bo->meta.use_flags & BO_USE_SCANOUT) &&
+	       !(bo->meta.use_flags &
+		 (BO_USE_RENDERSCRIPT | BO_USE_CAMERA_READ | BO_USE_CAMERA_WRITE));
+}
+
 static void *i915_bo_map(struct bo *bo, struct vma *vma, uint32_t map_flags)
 {
 	int ret;
@@ -918,6 +933,9 @@ static void *i915_bo_map(struct bo *bo, struct vma *vma, uint32_t map_flags)
 			gem_map.handle = bo->handle.u32;
 			gem_map.flags = I915_MMAP_OFFSET_WB;
 
+			if (use_write_combining(bo))
+				gem_map.flags = I915_MMAP_OFFSET_WC;
+
 			/* Get the fake offset back */
 			ret = drmIoctl(bo->drv->fd, DRM_IOCTL_I915_GEM_MMAP_OFFSET, &gem_map);
 			if (ret == 0)
@@ -925,17 +943,7 @@ static void *i915_bo_map(struct bo *bo, struct vma *vma, uint32_t map_flags)
 					    MAP_SHARED, bo->drv->fd, gem_map.offset);
 		} else {
 			struct drm_i915_gem_mmap gem_map = { 0 };
-			/* TODO(b/118799155): We don't seem to have a good way to
-			 * detect the use cases for which WC mapping is really needed.
-			 * The current heuristic seems overly coarse and may be slowing
-			 * down some other use cases unnecessarily.
-			 *
-			 * For now, care must be taken not to use WC mappings for
-			 * Renderscript and camera use cases, as they're
-			 * performance-sensitive. */
-			if ((bo->meta.use_flags & BO_USE_SCANOUT) &&
-			    !(bo->meta.use_flags &
-			      (BO_USE_RENDERSCRIPT | BO_USE_CAMERA_READ | BO_USE_CAMERA_WRITE)))
+			if (use_write_combining(bo))
 				gem_map.flags = I915_MMAP_WC;
 
 			gem_map.handle = bo->handle.u32;

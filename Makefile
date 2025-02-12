@@ -20,7 +20,7 @@ ifdef DRV_AMDGPU
 	CFLAGS += $(shell $(PKG_CONFIG) --cflags libdrm_amdgpu)
 	LDLIBS += -ldrm_amdgpu -ldl
 endif
-ifdef DRV_I915
+ifeq ($(filter 1,$(DRV_I915) $(DRV_XE)),)
 	CFLAGS += $(shell $(PKG_CONFIG) --cflags libdrm_intel)
 endif
 ifdef DRV_MESON

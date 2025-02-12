@@ -50,6 +50,7 @@ filegroup {
         "virtgpu.c",
         "virtgpu_cross_domain.c",
         "virtgpu_virgl.c",
+        "xe.c",
     ],
 }
 
@@ -143,7 +144,10 @@ cc_defaults {
 }
 
 generic_cflags = ["-DHAS_DMABUF_SYSTEM_HEAP"]
-intel_cflags = ["-DDRV_I915"]
+intel_cflags = [
+    "-DDRV_I915",
+    "-DDRV_XE",
+]
 meson_cflags = ["-DDRV_MESON"]
 msm_cflags = [
     "-DDRV_MSM",

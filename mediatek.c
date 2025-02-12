@@ -387,6 +387,7 @@ static int mediatek_bo_create_with_modifiers(struct bo *bo, uint32_t width, uint
 			bo->meta.sizes[1] = bo->meta.sizes[1] * 10 / 16;
 			bo->meta.offsets[1] = bo->meta.sizes[0];
 			bo->meta.total_size = bo->meta.total_size * 10 / 16;
+			heap_data.len = bo->meta.total_size;
 		}
 
 		if (priv->dma_heap_fd < 0) {
