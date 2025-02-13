@@ -80,6 +80,22 @@ static void xe_info_from_device_id(struct xe_device *xe)
 		}
 	}
 
+	for (i = 0; i < ARRAY_SIZE(lnl_ids); i++) {
+		if (lnl_ids[i] == xe->device_id) {
+			xe->graphics_version = 20;
+			xe->is_mtl_or_newer = true;
+			return;
+		}
+	}
+
+	for (i = 0; i < ARRAY_SIZE(ptl_ids); i++) {
+		if (ptl_ids[i] == xe->device_id) {
+			xe->graphics_version = 30;
+			xe->is_mtl_or_newer = true;
+			return;
+		}
+	}
+
 	/* Gen 12 */
 	for (i = 0; i < ARRAY_SIZE(gen12_ids); i++) {
 		if (gen12_ids[i] == xe->device_id) {
@@ -391,7 +407,7 @@ static bool xe_format_needs_LCU_alignment(uint32_t format, size_t plane,
 	case DRM_FORMAT_NV12:
 	case DRM_FORMAT_P010:
 	case DRM_FORMAT_P016:
-		return (xe->graphics_version == 12) && plane == 1;
+		return (xe->graphics_version >= 12) && plane == 1;
 	}
 	return false;
 }
