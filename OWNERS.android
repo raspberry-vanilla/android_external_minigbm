@@ -1,2 +1,3 @@
 adelva@google.com
 natsu@google.com
+include platform/system/core:main:/janitors/OWNERS
