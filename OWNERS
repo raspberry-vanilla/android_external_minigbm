@@ -19,4 +19,3 @@ per-file mediatek.c = fshao@chromium.org, hsinyi@chromium.org
 per-file msm.c = robdclark@chromium.org
 per-file rockchip.c = tfiga@chromium.org
 per-file virtgpu* = dawnhan@google.com, natsu@google.com, zzyiwei@chromium.org
-include platform/system/core:/janitors/OWNERS #{LAST_RESORT_SUGGESTION}
