@@ -69,3 +69,10 @@ prebuilt_etc {
     sub_dir: "vintf",
     installable: false,
 }
+
+prebuilt_etc {
+    name: "mapper.minigbm_gbm_mesa.xml",
+    src: "mapper.minigbm_gbm_mesa.xml",
+    sub_dir: "vintf",
+    installable: false,
+}

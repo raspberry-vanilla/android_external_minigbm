@@ -68,8 +68,8 @@ cc_binary {
         "libgralloctypes",
         "libhidlbase",
         "liblog",
-        "libminigbm_gralloc_gbm_mesa",
         "libminigbm_gralloc4_utils_gbm_mesa",
+        "libminigbm_gralloc_gbm_mesa",
     ],
     static_libs: [
         "libaidlcommonsupport",
@@ -82,7 +82,12 @@ cc_binary {
 
 filegroup {
     name: "allocator.minigbm.rc",
-    srcs: ["allocator.rc"]
+    srcs: ["allocator.rc"],
+}
+
+filegroup {
+    name: "allocator.minigbm_gbm_mesa.rc",
+    srcs: ["allocator.minigbm_gbm_mesa.rc"],
 }
 
 prebuilt_etc {
@@ -90,4 +95,53 @@ prebuilt_etc {
     src: "allocator.xml",
     sub_dir: "vintf",
     installable: false,
+}
+
+linker_config {
+    name: "android.hardware.graphics.allocator.minigbm_gbm_mesa-linker-config",
+    src: "apex_linkerconfig.json",
+    installable: false,
+}
+
+genrule {
+    name: "gen-android.hardware.graphics.allocator.minigbm_gbm_mesa.rc",
+    srcs: [":allocator.minigbm_gbm_mesa.rc"],
+    out: ["android.hardware.graphics.allocator-service.minigbm_gbm_mesa.rc"],
+    cmd: "sed -E 's%/vendor/bin/%/apex/com.android.hardware.graphics.allocator.minigbm_gbm_mesa/bin/%' $(in) > $(out)",
+}
+
+prebuilt_etc {
+    name: "android.hardware.graphics.allocator.minigbm_gbm_mesa.rc",
+    src: ":gen-android.hardware.graphics.allocator.minigbm_gbm_mesa.rc",
+    installable: false,
+}
+
+apex {
+    name: "com.android.hardware.graphics.allocator.minigbm_gbm_mesa",
+    manifest: "apex_manifest.json",
+    file_contexts: "apex_file_contexts",
+    key: "com.android.hardware.key",
+    certificate: ":com.android.hardware.certificate",
+    updatable: false,
+    vendor: true,
+
+    binaries: [
+        "android.hardware.graphics.allocator-service.minigbm_gbm_mesa",
+    ],
+    native_shared_libs: [
+        "dri_gbm",
+        "libgbm_mesa",
+        "libgbm_mesa_wrapper",
+        "mapper.minigbm_gbm_mesa",
+    ],
+    prebuilts: [
+        "allocator.minigbm.xml",
+        "android.hardware.graphics.allocator.minigbm_gbm_mesa-linker-config",
+        "android.hardware.graphics.allocator.minigbm_gbm_mesa.rc",
+        "mapper.minigbm_gbm_mesa.xml",
+    ],
+    overrides: [
+        "android.hardware.graphics.allocator-service.minigbm_gbm_mesa",
+        "mapper.minigbm_gbm_mesa",
+    ],
 }
