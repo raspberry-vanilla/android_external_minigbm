@@ -1,16 +1,20 @@
+# This project was upgraded with external_updater.
+# Usage: tools/external_updater/updater.sh update external/minigbm
+# For more info, check https://cs.android.com/android/platform/superproject/main/+/main:tools/external_updater/README.md
+
 name: "minigbm"
 description: ""
 third_party {
   license_type: NOTICE
   last_upgrade_date {
-    year: 2024
+    year: 2025
     month: 3
-    day: 12
+    day: 20
   }
   homepage: "https://www.chromium.org/"
   identifier {
     type: "Git"
     value: "https://chromium.googlesource.com/chromiumos/platform/minigbm/"
-    version: "40b28f098a29589b3f72de1ba6753d46a616c48b"
+    version: "3dd534cca22443d6ed2c7c0e2929a0a47c2a524c"
   }
 }
