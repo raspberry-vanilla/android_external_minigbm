@@ -128,7 +128,7 @@ uint64_t cros_gralloc_convert_usage(uint64_t usage)
 	handle_usage(&usage, GRALLOC_USAGE_EXTERNAL_DISP, &use_flags, BO_USE_NONE);
 	/* Map PROTECTED to linear until real HW protection is available on Android. */
 	handle_usage(&usage, GRALLOC_USAGE_PROTECTED, &use_flags, BO_USE_LINEAR);
-	handle_usage(&usage, GRALLOC_USAGE_CURSOR, &use_flags, BO_USE_NONE);
+	handle_usage(&usage, GRALLOC_USAGE_CURSOR, &use_flags, BO_USE_CURSOR);
 	/* HACK: See b/30054495 for BO_USE_SW_READ_OFTEN. */
 	handle_usage(&usage, GRALLOC_USAGE_HW_VIDEO_ENCODER, &use_flags,
 		     BO_USE_HW_VIDEO_ENCODER | BO_USE_SW_READ_OFTEN);

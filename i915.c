@@ -564,10 +564,9 @@ static size_t i915_num_planes_from_modifier(struct driver *drv, uint32_t format,
 static int i915_bo_compute_metadata(struct bo *bo, uint32_t width, uint32_t height, uint32_t format,
 				    uint64_t use_flags, const uint64_t *modifiers, uint32_t count)
 {
-	uint64_t modifier;
 	struct i915_device *i915 = bo->drv->priv;
-	bool huge_bo = (i915->graphics_version < 11) && (width > 4096);
 
+	uint64_t modifier;
 	if (modifiers) {
 		modifier =
 		    drv_pick_modifier(modifiers, count, i915->modifier.order, i915->modifier.count);
@@ -579,9 +578,31 @@ static int i915_bo_compute_metadata(struct bo *bo, uint32_t width, uint32_t heig
 	}
 
 	/*
+	 * For cursor buffer, add padding as needed to reach a known cursor-plane-supported
+	 * buffer size, as reported by the cursor capability properties.
+	 *
+	 * If the requested dimensions exceed either of the reported capabilities, or if the
+	 * capabilities couldn't be read, silently fallback by continuing without additional
+	 * padding. The buffer can still be used normally, and be committed to non-cursor
+	 * planes.
+	 */
+	if (use_flags & BO_USE_CURSOR) {
+		uint64_t cursor_width = 0;
+		uint64_t cursor_height = 0;
+		bool err = drmGetCap(bo->drv->fd, DRM_CAP_CURSOR_WIDTH, &cursor_width) ||
+			      drmGetCap(bo->drv->fd, DRM_CAP_CURSOR_HEIGHT, &cursor_height);
+
+		if (!err && width <= cursor_width && height <= cursor_height) {
+			width = cursor_width;
+			height = cursor_height;
+		}
+	}
+
+	/*
 	 * i915 only supports linear/x-tiled above 4096 wide on Gen9/Gen10 GPU.
 	 * VAAPI decode in NV12 Y tiled format so skip modifier change for NV12/P010 huge bo.
 	 */
+	bool huge_bo = (i915->graphics_version < 11) && (width > 4096);
 	if (huge_bo && format != DRM_FORMAT_NV12 && format != DRM_FORMAT_P010 &&
 	    modifier != I915_FORMAT_MOD_X_TILED && modifier != DRM_FORMAT_MOD_LINEAR) {
 		uint32_t i;

@@ -35,7 +35,7 @@ struct cross_domain_private {
 	uint32_t ring_handle;
 	void *ring_addr;
 	struct drv_array *metadata_cache;
-	pthread_mutex_t metadata_cache_lock;
+	pthread_mutex_t bo_create_lock;
 	bool mt8183_camera_quirk_;
 };
 
@@ -61,7 +61,7 @@ static void cross_domain_release_private(struct driver *drv)
 	if (priv->metadata_cache)
 		drv_array_destroy(priv->metadata_cache);
 
-	pthread_mutex_destroy(&priv->metadata_cache_lock);
+	pthread_mutex_destroy(&priv->bo_create_lock);
 
 	free(priv);
 }
@@ -155,14 +155,13 @@ static int cross_domain_metadata_query(struct driver *drv, struct bo_metadata *m
 	uint32_t plane;
 
 	memset(&cmd_get_reqs, 0, sizeof(cmd_get_reqs));
-	pthread_mutex_lock(&priv->metadata_cache_lock);
 	for (uint32_t i = 0; i < drv_array_size(priv->metadata_cache); i++) {
 		cached_data = (struct bo_metadata *)drv_array_at_idx(priv->metadata_cache, i);
 		if (!metadata_equal(metadata, cached_data))
 			continue;
 
 		memcpy(metadata, cached_data, sizeof(*cached_data));
-		goto out_unlock;
+		return 0;
 	}
 
 	cmd_get_reqs.hdr.cmd = CROSS_DOMAIN_CMD_GET_IMAGE_REQUIREMENTS;
@@ -192,7 +191,7 @@ static int cross_domain_metadata_query(struct driver *drv, struct bo_metadata *m
 	ret = cross_domain_submit_cmd(drv, (uint32_t *)&cmd_get_reqs, cmd_get_reqs.hdr.cmd_size,
 				      true);
 	if (ret < 0)
-		goto out_unlock;
+		return ret;
 
 	memcpy(&metadata->strides, &addr[0], 4 * sizeof(uint32_t));
 	memcpy(&metadata->offsets, &addr[4], 4 * sizeof(uint32_t));
@@ -211,10 +210,7 @@ static int cross_domain_metadata_query(struct driver *drv, struct bo_metadata *m
 	metadata->sizes[plane - 1] = metadata->total_size - metadata->offsets[plane - 1];
 
 	drv_array_append(priv->metadata_cache, metadata);
-
-out_unlock:
-	pthread_mutex_unlock(&priv->metadata_cache_lock);
-	return ret;
+	return 0;
 }
 
 /* Fill out metadata for guest buffers, used only for CPU access: */
@@ -264,7 +260,7 @@ static int cross_domain_init(struct driver *drv)
 	if (!priv)
 		return -ENOMEM;
 
-	ret = pthread_mutex_init(&priv->metadata_cache_lock, NULL);
+	ret = pthread_mutex_init(&priv->bo_create_lock, NULL);
 	if (ret) {
 		free(priv);
 		return ret;
@@ -367,8 +363,8 @@ static void cross_domain_close(struct driver *drv)
 	cross_domain_release_private(drv);
 }
 
-static int cross_domain_bo_create(struct bo *bo, uint32_t width, uint32_t height, uint32_t format,
-				  uint64_t use_flags)
+static int cross_domain_bo_create_locked(struct bo *bo, uint32_t width, uint32_t height,
+					 uint32_t format, uint64_t use_flags)
 {
 	int ret;
 	uint32_t blob_flags = VIRTGPU_BLOB_FLAG_USE_SHAREABLE;
@@ -416,6 +412,29 @@ static int cross_domain_bo_create(struct bo *bo, uint32_t width, uint32_t height
 	bo->handle.u32 = drm_rc_blob.bo_handle;
 
 	return 0;
+}
+
+static int cross_domain_bo_create(struct bo *bo, uint32_t width, uint32_t height, uint32_t format,
+				  uint64_t use_flags)
+{
+
+	int ret = 0;
+	struct cross_domain_private *priv = bo->drv->priv;
+
+	// HACK(b/395748805): Any host GET_IMAGE_REQUIREMENTS request must be immediately followed
+	// by the matching CREATE_BLOB request, as the current implementation in crosvm stashes a
+	// single buffer allocation for the first to be returned by the second. We ensure the two
+	// requests are made back to back by using a mutex lock, where the lock is acquired for the
+	// duration of the allocation requests.
+	//
+	// This forces all guest allocations to be made in serial order, and allows the host buffer
+	// stash to be an optimization.
+	pthread_mutex_lock(&priv->bo_create_lock);
+
+	ret = cross_domain_bo_create_locked(bo, width, height, format, use_flags);
+
+	pthread_mutex_unlock(&priv->bo_create_lock);
+	return ret;
 }
 
 static void *cross_domain_bo_map(struct bo *bo, struct vma *vma, uint32_t map_flags)

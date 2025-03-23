@@ -59,8 +59,8 @@ filegroup {
 
     srcs: [
         "cros_gralloc/cros_gralloc_buffer.cc",
-        "cros_gralloc/cros_gralloc_helpers.cc",
         "cros_gralloc/cros_gralloc_driver.cc",
+        "cros_gralloc/cros_gralloc_helpers.cc",
     ],
 }
 
@@ -69,19 +69,39 @@ filegroup {
     srcs: ["cros_gralloc/gralloc0/gralloc0.cc"],
 }
 
+generic_cflags = ["-DHAS_DMABUF_SYSTEM_HEAP"]
+intel_cflags = [
+    "-DDRV_I915",
+    "-DDRV_XE",
+]
+meson_cflags = ["-DDRV_MESON"]
+msm_cflags = [
+    "-DDRV_MSM",
+    "-DHAS_DMABUF_SYSTEM_HEAP",
+    "-DQCOM_DISABLE_COMPRESSED_NV12",
+]
+arcvm_cflags = ["-DVIRTIO_GPU_NEXT"]
+
 cc_defaults {
     name: "minigbm_defaults",
 
     cflags: [
-        "-D_GNU_SOURCE=1",
         "-D_FILE_OFFSET_BITS=64",
+        "-D_GNU_SOURCE=1",
         "-Wall",
-        "-Wsign-compare",
-        "-Wpointer-arith",
-        "-Wcast-qual",
         "-Wcast-align",
+        "-Wcast-qual",
         "-Wno-unused-parameter",
-    ],
+        "-Wpointer-arith",
+        "-Wsign-compare",
+    ] + select(soong_config_variable("minigbm", "platform"), {
+        "generic": generic_cflags,
+        "intel": intel_cflags,
+        "meson": meson_cflags,
+        "msm": msm_cflags,
+        "arcvm": arcvm_cflags,
+        default: [],
+    }),
 
     product_variables: {
         platform_sdk_version: {
@@ -118,9 +138,9 @@ cc_defaults {
         "libdmabufheap",
         "libdrm",
         "libgralloctypes",
+        "liblog",
         "libnativewindow",
         "libsync",
-        "liblog",
     ],
 }
 
@@ -143,19 +163,6 @@ cc_defaults {
     srcs: [":minigbm_gralloc0_files"],
 }
 
-generic_cflags = ["-DHAS_DMABUF_SYSTEM_HEAP"]
-intel_cflags = [
-    "-DDRV_I915",
-    "-DDRV_XE",
-]
-meson_cflags = ["-DDRV_MESON"]
-msm_cflags = [
-    "-DDRV_MSM",
-    "-DQCOM_DISABLE_COMPRESSED_NV12",
-    "-DHAS_DMABUF_SYSTEM_HEAP",
-]
-arcvm_cflags = ["-DVIRTIO_GPU_NEXT"]
-
 cc_library {
     name: "libgbm",
     defaults: ["minigbm_defaults"],
@@ -168,15 +175,6 @@ cc_library {
         "gbm_helpers.c",
         "minigbm_helpers.c",
     ],
-
-    cflags: select(soong_config_variable("minigbm", "platform"), {
-        "generic": generic_cflags,
-        "intel": intel_cflags,
-        "meson": meson_cflags,
-        "msm": msm_cflags,
-        "arcvm": arcvm_cflags,
-        default: [],
-    }),
 
     target: {
         host: {
@@ -197,8 +195,8 @@ cc_library {
         },
     },
     apex_available: [
-        "//apex_available:platform",
         "//apex_available:anyapex",
+        "//apex_available:platform",
     ],
     vendor_available: true,
     product_available: true,
@@ -213,10 +211,10 @@ rust_bindgen {
     wrapper_src: "rust/gbm_wrapper.h",
     source_stem: "bindings",
     bindgen_flags: [
-        "--blocklist-type=__BINDGEN_TMP_.*",
-        "--allowlist-type=^gbm_.*$",
         "--allowlist-function=^gbm_.*$",
+        "--allowlist-type=^gbm_.*$",
         "--allowlist-var=GBM_.*|gbm_.*$",
+        "--blocklist-type=__BINDGEN_TMP_.*",
         "--constified-enum-module=^gbm_.*$",
     ],
     shared_libs: ["libgbm"],
