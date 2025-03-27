@@ -1,3 +1,15 @@
 adelva@google.com
 natsu@google.com
+prahladk@google.com
 include platform/system/core:main:/janitors/OWNERS
+
+# Intel
+per-file external/i915_drm.h = msturner@google.com, ryanneph@google.com
+per-file external/xe_drm.h = msturner@google.com, ryanneph@google.com
+per-file intel_defines.h = msturner@google.com, ryanneph@google.com
+per-file i915.c = msturner@google.com, ryanneph@google.com
+per-file xe.c = msturner@google.com, ryanneph@google.com
+
+# Mediatek
+per-file external/mediatek_drm.h = dbehr@google.com, zzyiwei@google.com
+per-file mediatek.c = dbehr@google.com, zzyiwei@google.com
