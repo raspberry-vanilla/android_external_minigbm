@@ -20,7 +20,7 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #include <xf86drm.h>
-#include <mediatek_drm.h>
+#include "external/mediatek_drm.h"
 // clang-format on
 
 #include "drv_helpers.h"

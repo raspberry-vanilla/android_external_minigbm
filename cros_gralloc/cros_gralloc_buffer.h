@@ -38,6 +38,7 @@ class cros_gralloc_buffer
 	uint32_t get_plane_offset(uint32_t plane) const;
 	uint32_t get_plane_stride(uint32_t plane) const;
 	uint32_t get_plane_size(uint32_t plane) const;
+	int64_t get_plane_fd(uint32_t plane) const;
 	int32_t get_android_format() const;
 	int64_t get_android_usage() const;
 

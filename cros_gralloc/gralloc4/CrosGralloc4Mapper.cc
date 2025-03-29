@@ -16,6 +16,7 @@
 #include <cutils/native_handle.h>
 #include <gralloctypes/Gralloc4.h>
 
+#include "cros_gralloc/cros_gralloc_arm.h"
 #include "cros_gralloc/cros_gralloc_helpers.h"
 #include "cros_gralloc/gralloc4/CrosGralloc4Utils.h"
 
@@ -33,6 +34,11 @@ using android::hardware::graphics::common::V1_2::BufferUsage;
 using android::hardware::graphics::common::V1_2::PixelFormat;
 using android::hardware::graphics::mapper::V4_0::Error;
 using android::hardware::graphics::mapper::V4_0::IMapper;
+
+const static IMapper::MetadataType kArmMetadataTypePlaneFds{
+        GRALLOC_ARM_METADATA_TYPE_NAME, static_cast<int64_t>(ArmMetadataType::PLANE_FDS)};
+const static IMapper::MetadataType kArmMetadataTypeFormatDataType{
+        GRALLOC_ARM_METADATA_TYPE_NAME, static_cast<int64_t>(ArmMetadataType::FORMAT_DATA_TYPE)};
 
 Return<void> CrosGralloc4Mapper::createDescriptor(const BufferDescriptorInfo& description,
                                                   createDescriptor_cb hidlCb) {
@@ -480,8 +486,18 @@ Return<void> CrosGralloc4Mapper::get(const cros_gralloc_buffer* crosBuffer,
                 crosBuffer->get_android_usage() & BufferUsage::PROTECTED ? 1 : 0;
         status = android::gralloc4::encodeProtectedContent(hasProtectedContent, &encodedMetadata);
     } else if (metadataType == android::gralloc4::MetadataType_Compression) {
-        status = android::gralloc4::encodeCompression(android::gralloc4::Compression_None,
-                                                      &encodedMetadata);
+        ExtendableType compression = android::gralloc4::Compression_None;
+        uint64_t modifier = crosBuffer->get_format_modifier();
+
+        if (fourcc_mod_is_vendor(modifier, ARM)) {
+            if (((modifier >> 52) & 0xF) == DRM_FORMAT_MOD_ARM_TYPE_AFBC) {
+                compression = Compression_AFBC;
+            } else if (((modifier >> 52) & 0xF) == DRM_FORMAT_MOD_ARM_TYPE_AFRC) {
+                compression = Compression_AFRC;
+            }
+        }
+
+        status = android::gralloc4::encodeCompression(compression, &encodedMetadata);
     } else if (metadataType == android::gralloc4::MetadataType_Interlaced) {
         status = android::gralloc4::encodeInterlaced(android::gralloc4::Interlaced_None,
                                                      &encodedMetadata);
@@ -557,6 +573,20 @@ Return<void> CrosGralloc4Mapper::get(const cros_gralloc_buffer* crosBuffer,
         }
     } else if (metadataType == android::gralloc4::MetadataType_Smpte2094_40) {
         status = android::gralloc4::encodeSmpte2094_40(std::nullopt, &encodedMetadata);
+    } else if (metadataType == kArmMetadataTypePlaneFds) {
+        uint32_t num_planes = crosBuffer->get_num_planes();
+        int64_t plane_fds[5];
+        plane_fds[0] = num_planes;
+        for (auto plane = 0; plane < num_planes; plane++) {
+            plane_fds[1 + plane] = crosBuffer->get_plane_fd(plane);
+        }
+        encodedMetadata.resize(sizeof(uint64_t) * (1 + num_planes));
+        memcpy(encodedMetadata.data(), plane_fds, encodedMetadata.size());
+    } else if (metadataType == kArmMetadataTypeFormatDataType) {
+        uint32_t pf = crosBuffer->get_format();
+        int64_t fdt = static_cast<int64_t>(DataTypeFromDrmPixelFormat(pf));
+        encodedMetadata.resize(sizeof(fdt));
+        memcpy(encodedMetadata.data(), &fdt, encodedMetadata.size());
     } else {
         hidlCb(Error::UNSUPPORTED, encodedMetadata);
         return Void();
@@ -937,6 +967,18 @@ Return<void> CrosGralloc4Mapper::listSupportedMetadataTypes(listSupportedMetadat
             {
                     android::gralloc4::MetadataType_Smpte2094_40,
                     "",
+                    /*isGettable=*/true,
+                    /*isSettable=*/false,
+            },
+            {
+                    kArmMetadataTypePlaneFds,
+                    "Vector of file descriptors of each plane",
+                    /*isGettable=*/true,
+                    /*isSettable=*/false,
+            },
+            {
+                    kArmMetadataTypeFormatDataType,
+                    "Format data type",
                     /*isGettable=*/true,
                     /*isSettable=*/false,
             },

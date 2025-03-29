@@ -17,6 +17,7 @@
 
 #include <memory>
 
+#include "cros_gralloc/cros_gralloc_arm.h"
 #include "cros_gralloc/cros_gralloc_driver.h"
 #include "cros_gralloc/cros_gralloc_handle.h"
 #include "cros_gralloc/gralloc4/CrosGralloc4Utils.h"
@@ -49,8 +50,17 @@ static_assert(CROS_GRALLOC_BUFFER_METADATA_MAX_NAME_SIZE >=
 constexpr const char* STANDARD_METADATA_NAME =
         "android.hardware.graphics.common.StandardMetadataType";
 
+constexpr const AIMapper_MetadataType kArmMetadataTypePlaneFds{
+        GRALLOC_ARM_METADATA_TYPE_NAME, static_cast<int64_t>(ArmMetadataType::PLANE_FDS)};
+constexpr const AIMapper_MetadataType kArmMetadataTypeFormatDataType{
+        GRALLOC_ARM_METADATA_TYPE_NAME, static_cast<int64_t>(ArmMetadataType::FORMAT_DATA_TYPE)};
+
 static bool isStandardMetadata(AIMapper_MetadataType metadataType) {
     return strcmp(STANDARD_METADATA_NAME, metadataType.name) == 0;
+}
+
+static bool isArmMetadata(AIMapper_MetadataType metadataType) {
+    return strcmp(GRALLOC_ARM_METADATA_TYPE_NAME, metadataType.name) == 0;
 }
 
 class CrosGrallocMapperV5 final : public vendor::mapper::IMapperV5Impl {
@@ -119,6 +129,9 @@ class CrosGrallocMapperV5 final : public vendor::mapper::IMapperV5Impl {
     void dumpBuffer(
             const cros_gralloc_buffer* crosBuffer,
             std::function<void(AIMapper_MetadataType, const std::vector<uint8_t>&)> callback);
+
+    int32_t getArmMetadata(buffer_handle_t _Nonnull buffer, int64_t armMetadataType,
+                           void* _Nonnull outData, size_t outDataSize);
 };
 
 AIMapper_Error CrosGrallocMapperV5::importBuffer(
@@ -268,12 +281,65 @@ AIMapper_Error CrosGrallocMapperV5::rereadLockedBuffer(buffer_handle_t _Nonnull 
 int32_t CrosGrallocMapperV5::getMetadata(buffer_handle_t _Nonnull buffer,
                                          AIMapper_MetadataType metadataType, void* _Nonnull outData,
                                          size_t outDataSize) {
-    // We don't have any vendor-specific metadata, so divert to getStandardMetadata after validating
-    // that this is a standard metadata request
     if (isStandardMetadata(metadataType)) {
         return getStandardMetadata(buffer, metadataType.value, outData, outDataSize);
     }
+
+    if (isArmMetadata(metadataType)) {
+        return getArmMetadata(buffer, metadataType.value, outData, outDataSize);
+    }
     return -AIMAPPER_ERROR_UNSUPPORTED;
+}
+
+int32_t CrosGrallocMapperV5::getArmMetadata(buffer_handle_t _Nonnull buffer,
+                                            int64_t armMetadataType, void* _Nonnull outData,
+                                            size_t outDataSize) {
+    cros_gralloc_handle_t crosHandle = cros_gralloc_convert_handle(buffer);
+    if (!crosHandle) {
+        ALOGE("Failed to get. Invalid handle.");
+        return -AIMAPPER_ERROR_BAD_BUFFER;
+    }
+    int32_t retValue = -AIMAPPER_ERROR_UNSUPPORTED;
+    switch (armMetadataType) {
+        case ArmMetadataType::PLANE_FDS: {
+            mDriver->with_buffer(crosHandle, [&](cros_gralloc_buffer* crosBuffer) {
+                uint32_t num_planes = crosBuffer->get_num_planes();
+
+                if (outDataSize < sizeof(int64_t) * (1 + num_planes)) {
+                    retValue = sizeof(int64_t) * (1 + num_planes);
+                } else {
+                    int64_t plane_fds[DRV_MAX_PLANES + 1];
+
+                    plane_fds[0] = num_planes;
+                    for (auto plane = 0; plane < num_planes; plane++) {
+                        plane_fds[1 + plane] = crosBuffer->get_plane_fd(plane);
+                    }
+
+                    memcpy(outData, plane_fds, sizeof(uint64_t) * (1 + num_planes));
+
+                    retValue = -AIMAPPER_ERROR_NONE;
+                }
+            });
+            break;
+        }
+        case ArmMetadataType::FORMAT_DATA_TYPE: {
+            mDriver->with_buffer(crosHandle, [&](cros_gralloc_buffer* crosBuffer) {
+                uint32_t pf = crosBuffer->get_format();
+                int64_t fdt = static_cast<int64_t>(DataTypeFromDrmPixelFormat(pf));
+
+                if (outDataSize < sizeof(fdt)) {
+                    retValue = sizeof(fdt);
+                } else {
+                    memcpy(outData, &fdt, sizeof(fdt));
+                    retValue = -AIMAPPER_ERROR_NONE;
+                }
+            });
+            break;
+        }
+        default:
+            return -AIMAPPER_ERROR_UNSUPPORTED;
+    }
+    return retValue;
 }
 
 int32_t CrosGrallocMapperV5::getStandardMetadata(buffer_handle_t _Nonnull bufferHandle,
@@ -355,7 +421,18 @@ int32_t CrosGrallocMapperV5::getStandardMetadata(const cros_gralloc_buffer* cros
         return provide(hasProtectedContent);
     }
     if constexpr (metadataType == StandardMetadataType::COMPRESSION) {
-        return provide(android::gralloc4::Compression_None);
+        ExtendableType compression = android::gralloc4::Compression_None;
+        uint64_t modifier = crosBuffer->get_format_modifier();
+
+        if (fourcc_mod_is_vendor(modifier, ARM)) {
+            if (((modifier >> 52) & 0xF) == DRM_FORMAT_MOD_ARM_TYPE_AFBC) {
+                compression = Compression_AFBC;
+            } else if (((modifier >> 52) & 0xF) == DRM_FORMAT_MOD_ARM_TYPE_AFRC) {
+                compression = Compression_AFRC;
+            }
+        }
+
+        return provide(compression);
     }
     if constexpr (metadataType == StandardMetadataType::INTERLACED) {
         return provide(android::gralloc4::Interlaced_None);
@@ -528,7 +605,7 @@ constexpr AIMapper_MetadataTypeDescription describeStandard(StandardMetadataType
 AIMapper_Error CrosGrallocMapperV5::listSupportedMetadataTypes(
         const AIMapper_MetadataTypeDescription* _Nullable* _Nonnull outDescriptionList,
         size_t* _Nonnull outNumberOfDescriptions) {
-    static constexpr std::array<AIMapper_MetadataTypeDescription, 22> sSupportedMetadaTypes{
+    static constexpr std::array<AIMapper_MetadataTypeDescription, 24> sSupportedMetadaTypes{
             describeStandard(StandardMetadataType::BUFFER_ID, true, false),
             describeStandard(StandardMetadataType::NAME, true, false),
             describeStandard(StandardMetadataType::WIDTH, true, false),
@@ -551,6 +628,8 @@ AIMapper_Error CrosGrallocMapperV5::listSupportedMetadataTypes(
             describeStandard(StandardMetadataType::SMPTE2086, true, true),
             describeStandard(StandardMetadataType::CTA861_3, true, true),
             describeStandard(StandardMetadataType::STRIDE, true, false),
+            {kArmMetadataTypePlaneFds, "Vector of file descriptors of each plane", true, false, {0}},
+            {kArmMetadataTypeFormatDataType, "Format data type", true, false, {0}},
     };
     *outDescriptionList = sSupportedMetadaTypes.data();
     *outNumberOfDescriptions = sSupportedMetadaTypes.size();

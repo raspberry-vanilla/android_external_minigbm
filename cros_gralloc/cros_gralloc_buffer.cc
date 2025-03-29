@@ -142,6 +142,14 @@ uint32_t cros_gralloc_buffer::get_plane_size(uint32_t plane) const
 	return hnd_->sizes[plane];
 }
 
+int64_t cros_gralloc_buffer::get_plane_fd(uint32_t plane) const
+{
+	if (plane >= hnd_->num_planes) {
+		return -1;
+	}
+	return hnd_->fds[plane];
+}
+
 int32_t cros_gralloc_buffer::get_android_format() const
 {
 	return hnd_->droid_format;
