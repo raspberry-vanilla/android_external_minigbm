@@ -36,8 +36,7 @@
 #define SUPPORT_YUV422
 #endif
 
-// All platforms except MT8173 should USE_NV12_FOR_HW_VIDEO_DECODING
-// and SUPPORT_FP16_AND_10BIT_ABGR
+// All platforms except MT8173 should SUPPORT_FP16_AND_10BIT_ABGR
 // clang-format off
 #if defined(MTK_MT8183) || \
     defined(MTK_MT8186) || \
@@ -46,7 +45,6 @@
     defined(MTK_MT8195) || \
     defined(MTK_MT8196)
 // clang-format on
-#define USE_NV12_FOR_HW_VIDEO_DECODING
 #define SUPPORT_FP16_AND_10BIT_ABGR
 #else
 #define DONT_USE_64_ALIGNMENT_FOR_VIDEO_BUFFERS
@@ -179,8 +177,7 @@ static int mediatek_init(struct driver *drv)
 #endif
 	drv_modify_combination(drv, DRM_FORMAT_YVU420_ANDROID, &metadata,
 			       BO_USE_HW_VIDEO_DECODER | BO_USE_PROTECTED);
-#ifdef USE_NV12_FOR_HW_VIDEO_DECODING
-	// TODO(hiroh): Switch to use NV12 for video decoder on MT8173 as well.
+#ifndef MTK_MT8173
 	drv_modify_combination(drv, DRM_FORMAT_NV12, &metadata,
 			       BO_USE_HW_VIDEO_DECODER | BO_USE_PROTECTED);
 #endif
@@ -197,9 +194,15 @@ static int mediatek_init(struct driver *drv)
 				   BO_USE_GPU_DATA_BUFFER | BO_USE_SENSOR_DIRECT_DATA);
 
 	/* NV12 format for encoding and display. */
+#ifndef MTK_MT8173
+	drv_modify_combination(drv, DRM_FORMAT_NV12, &metadata,
+			       BO_USE_SCANOUT | BO_USE_HW_VIDEO_ENCODER | BO_USE_CAMERA_READ |
+				   BO_USE_CAMERA_WRITE | BO_USE_SW_MASK);
+#else
 	drv_modify_combination(drv, DRM_FORMAT_NV12, &metadata,
 			       BO_USE_SCANOUT | BO_USE_HW_VIDEO_ENCODER | BO_USE_CAMERA_READ |
 				   BO_USE_CAMERA_WRITE);
+#endif
 
 	/*
 	 * Android also frequently requests YV12 formats for some camera implementations
@@ -590,35 +593,27 @@ static void mediatek_resolve_format_and_use_flags(struct driver *drv, uint32_t f
 		*out_use_flags &= ~BO_USE_HW_VIDEO_ENCODER;
 		break;
 	case DRM_FORMAT_FLEX_YCbCr_420_888:
-#ifdef USE_NV12_FOR_HW_VIDEO_DECODING
-		// TODO(hiroh): Switch to use NV12 for video decoder on MT8173 as well.
-		if (use_flags & (BO_USE_HW_VIDEO_DECODER)) {
-			*out_format = DRM_FORMAT_NV12;
-			break;
-		}
-#endif
+#ifndef MTK_MT8173
+		*out_format = DRM_FORMAT_NV12;
+		break;
+#else
 		/*
 		 * b/292507490: The MT8173 decoder can output YUV420 only. Some CTS tests feed the
 		 * decoded buffer to the hardware encoder and the tests allocate the buffer with
 		 * DRM_FORMAT_FLEX_YCbCr_420_888 with the mask of BO_USE_HW_VIDEO_ENCODER |
 		 * BO_USE_HW_VIDEO_DECODER. Therefore, we have to allocate YUV420 in the case.
 		 */
-		if (use_flags &
-		    (BO_USE_CAMERA_READ | BO_USE_CAMERA_WRITE | BO_USE_HW_VIDEO_ENCODER)) {
-#ifndef MTK_MT8173
+		if ((use_flags &
+		     (BO_USE_CAMERA_READ | BO_USE_CAMERA_WRITE | BO_USE_HW_VIDEO_ENCODER)) &&
+		    !(use_flags & BO_USE_HW_VIDEO_DECODER)) {
 			*out_format = DRM_FORMAT_NV12;
 			break;
-#else
-			if (!(use_flags & BO_USE_HW_VIDEO_DECODER)) {
-				*out_format = DRM_FORMAT_NV12;
-				break;
-			}
-#endif
 		}
 		/* HACK: See b/139714614 */
 		*out_format = DRM_FORMAT_YVU420;
 		*out_use_flags &= ~BO_USE_SCANOUT;
 		break;
+#endif
 	default:
 		break;
 	}
