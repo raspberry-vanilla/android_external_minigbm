@@ -84,6 +84,7 @@ arcvm_cflags = ["-DVIRTIO_GPU_NEXT"]
 
 mediatek_cflags = [
     "-DDRV_MEDIATEK",
+    "-DHAS_DMABUF_SYSTEM_HEAP",
 ]
 
 cc_defaults {
