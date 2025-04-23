@@ -305,9 +305,8 @@ int32_t CrosGrallocMapperV5::getArmMetadata(buffer_handle_t _Nonnull buffer,
             mDriver->with_buffer(crosHandle, [&](cros_gralloc_buffer* crosBuffer) {
                 uint32_t num_planes = crosBuffer->get_num_planes();
 
-                if (outDataSize < sizeof(int64_t) * (1 + num_planes)) {
-                    retValue = sizeof(int64_t) * (1 + num_planes);
-                } else {
+                retValue = sizeof(int64_t) * (1 + num_planes);
+                if (outDataSize >= retValue) {
                     int64_t plane_fds[DRV_MAX_PLANES + 1];
 
                     plane_fds[0] = num_planes;
@@ -317,7 +316,7 @@ int32_t CrosGrallocMapperV5::getArmMetadata(buffer_handle_t _Nonnull buffer,
 
                     memcpy(outData, plane_fds, sizeof(uint64_t) * (1 + num_planes));
 
-                    retValue = -AIMAPPER_ERROR_NONE;
+                    retValue = sizeof(uint64_t) * (1 + num_planes);
                 }
             });
             break;
@@ -327,11 +326,10 @@ int32_t CrosGrallocMapperV5::getArmMetadata(buffer_handle_t _Nonnull buffer,
                 uint32_t pf = crosBuffer->get_format();
                 int64_t fdt = static_cast<int64_t>(DataTypeFromDrmPixelFormat(pf));
 
-                if (outDataSize < sizeof(fdt)) {
-                    retValue = sizeof(fdt);
-                } else {
+                retValue = sizeof(fdt);
+                if (outDataSize >= retValue) {
                     memcpy(outData, &fdt, sizeof(fdt));
-                    retValue = -AIMAPPER_ERROR_NONE;
+                    retValue = sizeof(fdt);
                 }
             });
             break;

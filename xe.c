@@ -185,6 +185,12 @@ static int xe_add_combinations(struct driver *drv)
 				   BO_USE_HW_VIDEO_ENCODER | BO_USE_GPU_DATA_BUFFER |
 				   BO_USE_SENSOR_DIRECT_DATA);
 
+	/* Android AIDL gralloc allows use of AHB-backed external memory for storage images. */
+	for (unsigned i = 0; i < ARRAY_SIZE(image_storage_formats); i++) {
+		drv_modify_combination(drv, image_storage_formats[i], &metadata_linear,
+				       BO_USE_GPU_DATA_BUFFER);
+	}
+
 	const uint64_t render_not_linear = unset_flags(render, linear_mask);
 	const uint64_t scanout_and_render_not_linear = render_not_linear | BO_USE_SCANOUT;
 	struct format_metadata metadata_x_tiled = { .tiling = XE_TILING_X,

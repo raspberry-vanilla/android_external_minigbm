@@ -21,6 +21,12 @@
 /* Define to match AIDL PixelFormat::R_8. */
 #define HAL_PIXEL_FORMAT_R8 0x38
 
+/* New formats from hardware/interfaces/graphics/common/aidl/android/hardware/graphics/common/PixelFormat.aidl */
+#define HAL_PIXEL_FORMAT_R16_UINT 57
+#define HAL_PIXEL_FORMAT_R16G16_UINT 58
+#define HAL_PIXEL_FORMAT_RGBA_10101010 59
+
+
 uint32_t cros_gralloc_convert_format(int format)
 {
 	/*
@@ -88,6 +94,14 @@ uint32_t cros_gralloc_convert_format(int format)
 		return DRM_FORMAT_DEPTH32;
 	case HAL_PIXEL_FORMAT_DEPTH_32F_STENCIL_8:
 		return DRM_FORMAT_DEPTH32_STENCIL8;
+#if ANDROID_API_LEVEL >= 34
+	case HAL_PIXEL_FORMAT_R16_UINT:
+		return DRM_FORMAT_R16;
+	case HAL_PIXEL_FORMAT_R16G16_UINT:
+		return DRM_FORMAT_GR1616;
+	case HAL_PIXEL_FORMAT_RGBA_10101010:
+		return DRM_FORMAT_AXBXGXRX106106106106;
+#endif
 	}
 
 	return DRM_FORMAT_NONE;

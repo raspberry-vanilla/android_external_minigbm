@@ -165,10 +165,12 @@ static const struct planar_layout *layout_from_format(uint32_t format)
 	case DRM_FORMAT_XBGR8888:
 	case DRM_FORMAT_XRGB2101010:
 	case DRM_FORMAT_XRGB8888:
+	case DRM_FORMAT_GR1616:
 		return &packed_4bpp_layout;
 
 	case DRM_FORMAT_DEPTH32_STENCIL8:
 	case DRM_FORMAT_ABGR16161616F:
+	case DRM_FORMAT_AXBXGXRX106106106106:
 		return &packed_8bpp_layout;
 
 	default:
