@@ -10,9 +10,6 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
-#if !defined(ANDROID) || (ANDROID_API_LEVEL >= 31 && defined(HAS_DMABUF_SYSTEM_HEAP))
-#include <linux/dma-heap.h>
-#endif
 #include <poll.h>
 #include <stdio.h>
 #include <string.h>
@@ -20,6 +17,9 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #include <xf86drm.h>
+#if !defined(ANDROID) || (ANDROID_API_LEVEL >= 31 && defined(HAS_DMABUF_SYSTEM_HEAP))
+#include "external/dma-heap.h"
+#endif
 #include "external/mediatek_drm.h"
 // clang-format on
 
@@ -111,6 +111,13 @@ static const uint32_t video_yuv_formats[] = {
 	DRM_FORMAT_YVU420,
 	DRM_FORMAT_YVU420_ANDROID
 };
+
+// In addition to all scanout we should also support R8 and non YUV texture formats.
+static const uint32_t gpu_data_buffer_formats[] = {
+	DRM_FORMAT_R8,
+	DRM_FORMAT_ABGR2101010,
+	DRM_FORMAT_ABGR16161616F
+};
 // clang-format on
 
 static bool is_video_yuv_format(uint32_t format)
@@ -149,8 +156,7 @@ static int mediatek_init(struct driver *drv)
 	drv->priv = priv;
 
 	drv_add_combinations(drv, render_target_formats, ARRAY_SIZE(render_target_formats),
-			     &LINEAR_METADATA,
-			     BO_USE_RENDER_MASK | BO_USE_SCANOUT | protected);
+			     &LINEAR_METADATA, BO_USE_RENDER_MASK | BO_USE_SCANOUT | protected);
 
 	drv_add_combinations(drv, texture_source_formats, ARRAY_SIZE(texture_source_formats),
 			     &LINEAR_METADATA, BO_USE_TEXTURE_MASK | protected);
@@ -219,8 +225,7 @@ static int mediatek_init(struct driver *drv)
 	 * Android also frequently requests YV12 formats for some camera implementations
 	 * (including the external provider implmenetation).
 	 */
-	drv_modify_combination(drv, DRM_FORMAT_YVU420_ANDROID, &metadata,
-			       BO_USE_CAMERA_WRITE);
+	drv_modify_combination(drv, DRM_FORMAT_YVU420_ANDROID, &metadata, BO_USE_CAMERA_WRITE);
 
 #ifdef MTK_MT8183
 	/* Only for MT8183 Camera subsystem */
@@ -234,6 +239,15 @@ static int mediatek_init(struct driver *drv)
 	drv_add_combination(drv, DRM_FORMAT_MTISP_SXYZW10, &metadata,
 			    BO_USE_CAMERA_READ | BO_USE_CAMERA_WRITE | BO_USE_SW_MASK);
 #endif
+
+	for (unsigned i = 0; i < ARRAY_SIZE(render_target_formats); i++) {
+		drv_modify_combination(drv, render_target_formats[i], &metadata,
+				       BO_USE_GPU_DATA_BUFFER);
+	}
+	for (unsigned i = 0; i < ARRAY_SIZE(gpu_data_buffer_formats); i++) {
+		drv_modify_combination(drv, gpu_data_buffer_formats[i], &metadata,
+				       BO_USE_GPU_DATA_BUFFER);
+	}
 
 	return drv_modify_linear_combinations(drv);
 }
@@ -383,7 +397,8 @@ static int mediatek_bo_create_with_modifiers(struct bo *bo, uint32_t width, uint
 	if (is_protected) {
 #if !defined(ANDROID) || (ANDROID_API_LEVEL >= 31 && defined(HAS_DMABUF_SYSTEM_HEAP))
 		int ret;
-		struct mediatek_private_drv_data *priv = (struct mediatek_private_drv_data *)bo->drv->priv;
+		struct mediatek_private_drv_data *priv =
+		    (struct mediatek_private_drv_data *)bo->drv->priv;
 		struct dma_heap_allocation_data heap_data = {
 			.len = bo->meta.total_size,
 			.fd_flags = O_RDWR | O_CLOEXEC,

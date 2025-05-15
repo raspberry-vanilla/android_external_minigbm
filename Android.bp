@@ -258,7 +258,7 @@ cc_library_headers {
     vendor_available: true,
     export_include_dirs: ["cros_gralloc"],
     visibility: [
-        "//device/generic/goldfish-opengl/system/hwc3:__subpackages__",
+        "//device/generic/goldfish/hals/hwc3:__subpackages__",
     ],
 }
 
