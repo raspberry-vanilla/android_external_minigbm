@@ -161,6 +161,8 @@ static void drv_destroy_and_close(struct driver *drv)
 static bool is_running_with_software_rendering()
 {
 	const char *vulkan_driver = drv_get_os_option("ro.hardware.vulkan");
+	if (!vulkan_driver)
+		vulkan_driver = drv_get_os_option("ro.board.platform");
 	return (vulkan_driver != nullptr && strstr(vulkan_driver, "pastel") != nullptr);
 }
 
