@@ -223,7 +223,7 @@ static int mediatek_init(struct driver *drv)
 
 	/*
 	 * Android also frequently requests YV12 formats for some camera implementations
-	 * (including the external provider implmenetation).
+	 * (including the external provider implementation).
 	 */
 	drv_modify_combination(drv, DRM_FORMAT_YVU420_ANDROID, &metadata, BO_USE_CAMERA_WRITE);
 
@@ -277,6 +277,7 @@ static int mediatek_bo_create_with_modifiers(struct bo *bo, uint32_t width, uint
 	const bool is_linear = bo->meta.use_flags & BO_USE_LINEAR;
 	const bool is_protected = bo->meta.use_flags & BO_USE_PROTECTED;
 	const bool is_scanout = bo->meta.use_flags & BO_USE_SCANOUT;
+	const bool is_cursor = bo->meta.use_flags & BO_USE_CURSOR;
 	/*
 	 * We identify the ChromeOS Camera App buffers via these two USE flags. Those buffers need
 	 * the same alignment as the video hardware encoding.
@@ -301,6 +302,27 @@ static int mediatek_bo_create_with_modifiers(struct bo *bo, uint32_t width, uint
 	}
 
 	/*
+	 * For cursor buffer, add padding as needed to reach a known cursor-plane-supported
+	 * buffer size, as reported by the cursor capability properties.
+	 *
+	 * If the requested dimensions exceed either of the reported capabilities, or if the
+	 * capabilities couldn't be read, silently fallback by continuing without additional
+	 * padding. The buffer can still be used normally, and be committed to non-cursor
+	 * planes.
+	 */
+	if (is_cursor) {
+		uint64_t cursor_width = 0;
+		uint64_t cursor_height = 0;
+		bool err = drmGetCap(bo->drv->fd, DRM_CAP_CURSOR_WIDTH, &cursor_width) ||
+			   drmGetCap(bo->drv->fd, DRM_CAP_CURSOR_HEIGHT, &cursor_height);
+
+		if (!err && width <= cursor_width && height <= cursor_height) {
+			width = cursor_width;
+			height = cursor_height;
+		}
+	}
+
+	/*
 	 * Since the ARM L1 cache line size is 64 bytes, align to that as a
 	 * performance optimization, except for video buffers on certain platforms,
 	 * these should only be accessed from the GPU and VCODEC subsystems (maybe
@@ -320,7 +342,7 @@ static int mediatek_bo_create_with_modifiers(struct bo *bo, uint32_t width, uint
 	 * not allocated by minigbm. So we don't have to care about it. The tiled buffer is
 	 * converted to NV12 or YV12, which is allocated by minigbm. V4L2 MDP doesn't
 	 * require any special alignment for them.
-	 * On the other hand, the mediatek video encoder reuqires a padding on each plane.
+	 * On the other hand, the mediatek video encoder requires a padding on each plane.
 	 * When both video decoder and encoder use flag is masked (in some CTS test), we
 	 * align with the encoder alignment.
 	 * However, V4L2VideoDecodeAccelerator used on MT8173 fails handling the buffer with
