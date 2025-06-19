@@ -25,4 +25,16 @@ cc_library_shared {
         "gbm_mesa_internals.cpp",
     ],
     cpp_std: "c++17",
+    required: ["libgbm_mesa_wrapper"],
+}
+
+cc_library_shared {
+    name: "libgbm_mesa_wrapper",
+    vendor: true,
+    srcs: ["gbm_mesa_wrapper.c"],
+    shared_libs: [
+        "libdrm",
+        "libgbm_mesa",
+        "liblog",
+    ],
 }
