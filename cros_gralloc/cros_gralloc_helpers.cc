@@ -18,6 +18,9 @@
 /* Define to match AIDL BufferUsage::GPU_DATA_BUFFER. */
 #define BUFFER_USAGE_GPU_DATA_BUFFER (1 << 24)
 
+/* Define to match AIDL PixelFormat::YCBCR_P210. */
+#define HAL_PIXEL_FORMAT_YCBCR_P210 0x3c
+
 /* Define to match AIDL PixelFormat::R_8. */
 #define HAL_PIXEL_FORMAT_R8 0x38
 
@@ -83,6 +86,8 @@ uint32_t cros_gralloc_convert_format(int format)
 #if ANDROID_API_LEVEL >= 30
 	case HAL_PIXEL_FORMAT_YCBCR_P010:
 		return DRM_FORMAT_P010;
+	case HAL_PIXEL_FORMAT_YCBCR_P210:
+		return DRM_FORMAT_P210;
 #endif
 	case HAL_PIXEL_FORMAT_DEPTH_16:
 		return DRM_FORMAT_DEPTH16;
