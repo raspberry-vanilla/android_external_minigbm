@@ -30,9 +30,9 @@ struct backend gbm_mesa_backend = {
 	.bo_create = gbm_mesa_bo_create,
 	.bo_destroy = gbm_mesa_bo_destroy,
 	.bo_import = gbm_mesa_bo_import,
+	.bo_export = gbm_mesa_bo_export,
 	.bo_map = gbm_mesa_bo_map,
 	.bo_unmap = gbm_mesa_bo_unmap,
-	.bo_get_plane_fd = gbm_mesa_bo_get_plane_fd,
 	.bo_get_map_stride = gbm_mesa_bo_get_map_stride,
 	.resolve_format_and_use_flags = gbm_mesa_resolve_format_and_use_flags,
 };

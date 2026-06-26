@@ -472,6 +472,11 @@ int gbm_mesa_bo_import(struct bo *bo, struct drv_import_fd_data *data)
 	return 0;
 }
 
+int gbm_mesa_bo_export(struct bo *bo, size_t plane)
+{
+	return dup(((GbmMesaBoPriv *)bo->priv)->fds[plane].Get());
+}
+
 int gbm_mesa_bo_destroy(struct bo *bo)
 {
 	if (bo->priv) {
@@ -479,11 +484,6 @@ int gbm_mesa_bo_destroy(struct bo *bo)
 		bo->priv = nullptr;
 	}
 	return 0;
-}
-
-int gbm_mesa_bo_get_plane_fd(struct bo *bo, size_t plane)
-{
-	return dup(((GbmMesaBoPriv *)bo->priv)->fds[plane].Get());
 }
 
 void *gbm_mesa_bo_map(struct bo *bo, struct vma *vma, uint32_t map_flags)

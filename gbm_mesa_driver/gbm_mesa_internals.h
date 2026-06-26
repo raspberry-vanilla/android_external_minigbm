@@ -42,11 +42,10 @@ int gbm_mesa_bo_create(struct bo *bo, uint32_t width, uint32_t height, uint32_t 
 		       uint64_t use_flags);
 
 int gbm_mesa_bo_import(struct bo *bo, struct drv_import_fd_data *data);
+int gbm_mesa_bo_export(struct bo *bo, size_t plane);
 
 int gbm_mesa_bo_destroy(struct bo *bo);
 
 uint32_t gbm_mesa_bo_get_map_stride(struct bo *bo);
 void *gbm_mesa_bo_map(struct bo *bo, struct vma *vma, uint32_t map_flags);
 int gbm_mesa_bo_unmap(struct bo *bo, struct vma *vma);
-
-int gbm_mesa_bo_get_plane_fd(struct bo *bo, size_t plane);
