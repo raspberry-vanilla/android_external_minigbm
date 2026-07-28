@@ -90,6 +90,13 @@ static const struct planar_layout biplanar_yuv_p010_layout = {
 	.bytes_per_pixel = { 2, 4 }
 };
 
+static const struct planar_layout biplanar_yuv_p210_layout = {
+	.num_planes = 2,
+	.horizontal_subsampling = { 1, 2 },
+	.vertical_subsampling = { 1, 1 },
+	.bytes_per_pixel = { 2, 4 }
+};
+
 // clang-format on
 
 static const struct planar_layout *layout_from_format(uint32_t format)
@@ -115,6 +122,8 @@ static const struct planar_layout *layout_from_format(uint32_t format)
 
 	case DRM_FORMAT_P010:
 		return &biplanar_yuv_p010_layout;
+	case DRM_FORMAT_P210:
+		return &biplanar_yuv_p210_layout;
 
 	case DRM_FORMAT_ABGR1555:
 	case DRM_FORMAT_ABGR4444:
@@ -372,6 +381,9 @@ int drv_dumb_bo_create_ex(struct bo *bo, uint32_t width, uint32_t height, uint32
 	case DRM_FORMAT_P010:
 		/* Adjust the height to include room for chroma planes */
 		aligned_height = 3 * DIV_ROUND_UP(height, 2);
+		break;
+	case DRM_FORMAT_P210:
+		aligned_height = 2 * height;
 		break;
 	default:
 		break;
