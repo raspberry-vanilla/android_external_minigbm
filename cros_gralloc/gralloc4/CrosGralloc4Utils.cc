@@ -254,6 +254,28 @@ const std::unordered_map<uint32_t, std::vector<PlaneLayout>>& GetPlaneLayoutsMap
                               .verticalSubsampling = 2,
                       }}},
 
+                    {DRM_FORMAT_P210,
+                     {{
+                              .components = {{.type = android::gralloc4::PlaneLayoutComponentType_Y,
+                                              .offsetInBits = 6,
+                                              .sizeInBits = 10}},
+                              .sampleIncrementInBits = 16,
+                              .horizontalSubsampling = 1,
+                              .verticalSubsampling = 1,
+                      },
+                      {
+                              .components =
+                                      {{.type = android::gralloc4::PlaneLayoutComponentType_CB,
+                                        .offsetInBits = 6,
+                                        .sizeInBits = 10},
+                                       {.type = android::gralloc4::PlaneLayoutComponentType_CR,
+                                        .offsetInBits = 22,
+                                        .sizeInBits = 10}},
+                              .sampleIncrementInBits = 32,
+                              .horizontalSubsampling = 2,
+                              .verticalSubsampling = 1,
+                      }}},
+
                     {DRM_FORMAT_R8,
                      {{
                              .components = {{.type = android::gralloc4::PlaneLayoutComponentType_R,
