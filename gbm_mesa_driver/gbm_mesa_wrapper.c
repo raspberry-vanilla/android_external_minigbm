@@ -198,7 +198,7 @@ struct gbm_ops gbm_ops = {
 	.unmap = gbm_unmap,
 };
 
-__attribute__((visibility("default"))) struct gbm_ops *get_gbm_ops()
+struct gbm_ops *get_gbm_ops()
 {
 	return &gbm_ops;
 }

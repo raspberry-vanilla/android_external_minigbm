@@ -16,6 +16,9 @@
 cc_library_shared {
     name: "libminigbm_gralloc_gbm_mesa",
     defaults: ["minigbm_cros_gralloc_library_defaults"],
+    shared_libs: [
+        "libgbm_mesa_wrapper",
+    ],
     cflags: [
         "-DDRV_EXTERNAL",
         "-DHAS_DMABUF_SYSTEM_HEAP",
@@ -25,7 +28,6 @@ cc_library_shared {
         "gbm_mesa_internals.cpp",
     ],
     cpp_std: "c++17",
-    required: ["libgbm_mesa_wrapper"],
 }
 
 cc_library_shared {

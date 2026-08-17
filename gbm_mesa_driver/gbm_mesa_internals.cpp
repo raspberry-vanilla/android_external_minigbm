@@ -29,7 +29,6 @@ extern "C" {
 #include <array>
 #include <assert.h>
 #include <cutils/properties.h>
-#include <dlfcn.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <functional>
@@ -49,9 +48,6 @@ extern "C" {
 #include <vector>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
-
-#define GBM_WRAPPER_NAME "libgbm_mesa_wrapper.so"
-#define GBM_GET_OPS_SYMBOL "get_gbm_ops"
 
 void gbm_mesa_resolve_format_and_use_flags(struct driver *drv, uint32_t format, uint64_t use_flags,
 					   uint32_t *out_format, uint64_t *out_use_flags)
@@ -128,14 +124,10 @@ struct GbmMesaDriver {
 	{
 		if (gbm_dev)
 			wrapper->dev_destroy(gbm_dev);
-
-		if (dl_handle)
-			dlclose(dl_handle);
 	}
 
 	struct gbm_ops *wrapper = nullptr;
 	struct gbm_device *gbm_dev = nullptr;
-	void *dl_handle = nullptr;
 
 	UniqueFd gbm_node_fd;
 	UniqueFd gpu_node_fd;
@@ -270,20 +262,6 @@ static std::shared_ptr<GbmMesaDriver> gbm_mesa_get_or_init_driver(struct driver 
 
 		if (!gbm_mesa_drv->gbm_node_fd) {
 			drv_loge("Unable to find or open DRM node");
-			return nullptr;
-		}
-
-		gbm_mesa_drv->dl_handle = dlopen(GBM_WRAPPER_NAME, RTLD_NOW);
-		if (gbm_mesa_drv->dl_handle == nullptr) {
-			drv_loge("%s", dlerror());
-			drv_loge("Unable to open '%s' shared library", GBM_WRAPPER_NAME);
-			return nullptr;
-		}
-
-		auto get_gbm_ops =
-		    (struct gbm_ops * (*)(void)) dlsym(gbm_mesa_drv->dl_handle, GBM_GET_OPS_SYMBOL);
-		if (get_gbm_ops == nullptr) {
-			drv_loge("Unable to find '%s' symbol", GBM_GET_OPS_SYMBOL);
 			return nullptr;
 		}
 

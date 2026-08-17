@@ -16,6 +16,10 @@
 
 #pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdbool.h>
 
 struct gbm_device;
@@ -56,3 +60,9 @@ struct gbm_ops {
 
 	void (*unmap)(struct gbm_bo *bo, void *map_data);
 };
+
+struct gbm_ops *get_gbm_ops();
+
+#ifdef __cplusplus
+}
+#endif
