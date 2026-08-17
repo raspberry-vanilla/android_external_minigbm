@@ -28,7 +28,7 @@ cc_library_shared {
     defaults: ["minigbm_gralloc4_common_defaults"],
     vintf_fragments: ["mapper.minigbm.xml"],
     shared_libs: [
-        "android.hardware.graphics.allocator-V2-ndk",
+        "android.hardware.graphics.allocator-V3-ndk",
         "libminigbm_gralloc",
     ],
     header_libs: [
@@ -48,7 +48,7 @@ cc_library_shared {
     defaults: ["minigbm_gralloc4_common_defaults"],
     vintf_fragments: ["mapper.minigbm_gbm_mesa.xml"],
     shared_libs: [
-        "android.hardware.graphics.allocator-V2-ndk",
+        "android.hardware.graphics.allocator-V3-ndk",
         "libminigbm_gralloc_gbm_mesa",
     ],
     header_libs: [
