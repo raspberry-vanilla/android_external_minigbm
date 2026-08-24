@@ -77,7 +77,7 @@ struct driver {
 };
 
 struct backend {
-	const char *name;
+	char *name;
 	void (*preload)(bool load);
 	int (*init)(struct driver *drv);
 	void (*close)(struct driver *drv);
