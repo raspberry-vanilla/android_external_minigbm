@@ -24,7 +24,7 @@ extern "C" {
 #endif
 
 struct backend gbm_mesa_backend = {
-	.name = "gbm_mesa",
+	.name = const_cast<char*>("gbm_mesa"),
 	.init = gbm_mesa_driver_init,
 	.close = gbm_mesa_driver_close,
 	.bo_create = gbm_mesa_bo_create,
