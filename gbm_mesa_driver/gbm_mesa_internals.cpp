@@ -428,8 +428,9 @@ int gbm_mesa_bo_create(struct bo *bo, uint32_t width, uint32_t height, uint32_t 
 
 	auto priv = new GbmMesaBoPriv();
 	for (size_t plane = 0; plane < bo->meta.num_planes; plane++) {
-		priv->fds[plane] = UniqueFd(alloc_args.out_fd);
+		priv->fds[plane] = UniqueFd(dup(alloc_args.out_fd));
 	}
+	close(alloc_args.out_fd);
 
 	priv->map_stride = alloc_args.out_map_stride;
 	bo->meta.format_modifier = alloc_args.out_modifier;
