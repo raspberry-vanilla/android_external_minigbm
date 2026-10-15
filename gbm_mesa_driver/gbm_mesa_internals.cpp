@@ -117,6 +117,20 @@ int gbm_mesa_driver_init(struct driver *drv)
 	 * Android also frequently requests YV12 formats for some camera implementations
 	 * (including the external provider implmenetation).
 	 */
+	/*
+	 * 10-bit video (HEVC Main 10 / HDR10) from the ffmpeg codec2 decoder:
+	 * HAL_PIXEL_FORMAT_YCBCR_P010 -> DRM_FORMAT_P010. Mesa has no GBM format
+	 * for it, so it is allocated as a linear R8 blob (see
+	 * gbm_mesa_bo_create) with the standard P010 plane layout. It can only be
+	 * sampled by the GPU (v3d imports it as R16 + GR1616 planes); the vc4
+	 * HVS on BCM2711 cannot scan out linear P010 (hvs6_only in vc4_plane.c);
+	 * SCANOUT is still listed because SurfaceFlinger consumers request
+	 * GRALLOC_USAGE_HW_COMPOSER, HWC then falls back to GPU composition.
+	 */
+	drv_add_combination(drv, DRM_FORMAT_P010, &linear_metadata,
+			    BO_USE_TEXTURE_MASK | BO_USE_SCANOUT | BO_USE_SW_MASK |
+			    BO_USE_LINEAR | BO_USE_HW_VIDEO_DECODER);
+
 	drv_modify_combination(drv, DRM_FORMAT_YVU420_ANDROID, &linear_metadata,
 			       BO_USE_CAMERA_READ | BO_USE_CAMERA_WRITE);
 
@@ -381,7 +395,11 @@ int gbm_mesa_bo_create(struct bo *bo, uint32_t width, uint32_t height, uint32_t 
 
 	if (alloc_args.drm_format == 0) {
 		/* Always use linear for spoofed format allocations. */
-		drv_bo_from_format(bo, alloc_args.width, 1, alloc_args.height, format);
+		/* drv_bo_from_format() takes the luma stride in bytes, not the width in pixels
+		 * (identical for 8-bit formats, but half the real stride for 16-bit ones such
+		 * as P010). */
+		uint32_t stride = drv_stride_from_format(format, alloc_args.width, 0);
+		drv_bo_from_format(bo, stride, 1, alloc_args.height, format);
 		bo_layout_ready = true;
 		bo->meta.total_size = ALIGN(bo->meta.total_size, size_align);
 		alloc_args.drm_format = DRM_FORMAT_R8;
